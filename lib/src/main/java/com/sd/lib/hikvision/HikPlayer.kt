@@ -3,11 +3,24 @@ package com.sd.lib.hikvision
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.os.Handler
+import android.os.Looper
 import android.view.Surface
 import android.view.SurfaceHolder
 import com.hikvision.netsdk.HCNetSDK
 import com.hikvision.netsdk.NET_DVR_PREVIEWINFO
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.cancellation.CancellationException
 
 interface HikPlayer {
   /** 初始化 */
@@ -20,7 +33,7 @@ interface HikPlayer {
     password: String,
     /** 0-主码流；1-子码流 */
     streamType: Int = 0,
-  ): Boolean
+  )
 
   /** 设置预览 */
   fun setSurface(surface: Surface?)
@@ -56,72 +69,57 @@ interface HikPlayer {
      */
     @JvmStatic
     fun create(callback: Callback): HikPlayer {
-      val handler = HikVision.mainHandler
-      return HikPlayerImpl(
-        callback = MainCallback(callback, handler),
-        handler = handler,
-      )
+      return HikPlayerImpl(MainPlayerCallback(callback))
     }
   }
 }
 
 private class HikPlayerImpl(
   private val callback: HikPlayer.Callback,
-  private val handler: Handler,
 ) : HikPlayer {
+  /** 初始化标志 */
+  private var _initFlag = AtomicBoolean(false)
+
   /** 用户ID */
   private var _userID: Int? = null
   /** 播放配置 */
   private var _playConfig: PlayConfig? = null
   /** 预览 */
   private var _surface: Surface? = null
+
   /** 是否需要播放 */
   private var _requirePlay = false
   /** 播放句柄 */
   private var _playHandle: Int = -1
+
+  private val _coroutineScope = MainScope()
+  private val _initConfigFlow = MutableStateFlow<InitConfig?>(null)
 
   override fun init(
     ip: String,
     username: String,
     password: String,
     streamType: Int,
-  ): Boolean {
-    if (ip.isEmpty()) return false
-    if (username.isEmpty()) return false
-    if (password.isEmpty()) return false
+  ) {
+    if (ip.isEmpty()) return
+    if (username.isEmpty()) return
+    if (password.isEmpty()) return
 
-    log { "init ip:$ip|streamType:$streamType" }
-    cancelRetryTask()
-    val loginResult = runCatching {
-      HikVision.login(ip = ip, username = username, password = password)
-    }
-
-    // 登录成功
-    loginResult.onSuccess { data ->
-      initLoginUser(userID = data)
-      initPlayConfig(ip = ip, streamType = streamType)
-    }
-
-    // 登录失败
-    loginResult.onFailure { e ->
-      initLoginUser(userID = null)
-      val error = (e as? HikVisionException) ?: HikVisionException(cause = e)
-      callback.onError(error)
-      when (error) {
-        is HikVisionExceptionLoginAccount -> {
-          // 用户名或者密码错误，不重试
-        }
-        is HikVisionExceptionLoginLocked -> {
-          // 账号被锁定，不重试
-        }
-        else -> {
-          startRetryTask(error) { init(ip = ip, username = username, password = password, streamType = streamType) }
-        }
+    if (_initFlag.compareAndSet(false, true)) {
+      log { "init" }
+      HikVision.addCallback(_hikVisionCallback)
+      _coroutineScope.launch {
+        _initConfigFlow.filterNotNull().collectLatest { it.init() }
       }
     }
 
-    HikVision.addCallback(_hikVisionCallback)
-    return loginResult.isSuccess
+    cancelRetryJob()
+    _initConfigFlow.value = InitConfig(
+      ip = ip,
+      username = username,
+      password = password,
+      streamType = streamType,
+    )
   }
 
   @Synchronized
@@ -144,11 +142,12 @@ private class HikPlayerImpl(
   override fun stopPlay() {
     log { "stopPlay" }
     _requirePlay = false
-    cancelRetryTask()
+    cancelRetryJob()
     stopPlayInternal()
   }
 
   /** 开始播放 */
+  @Synchronized
   private fun startPlayInternal() {
     if (!_requirePlay) {
       /** [startPlay]还未调用 */
@@ -165,7 +164,7 @@ private class HikPlayerImpl(
     val surface = _surface ?: return
 
     // 取消重试任务
-    cancelRetryTask()
+    cancelRetryJob()
 
     // 播放信息
     val playInfo = NET_DVR_PREVIEWINFO().apply {
@@ -186,7 +185,7 @@ private class HikPlayerImpl(
       log { "startPlayInternal failed code:$code|userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
       val error = code.asHikVisionExceptionNotInit() ?: HikVisionExceptionPlayFailed(code = code)
       callback.onError(error)
-      startRetryTask(error) { startPlayInternal() }
+      startRetryJob(error) { startPlayInternal() }
     } else {
       // 播放成功
       log { "startPlayInternal success userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
@@ -214,10 +213,41 @@ private class HikPlayerImpl(
     log { "release" }
     HikVision.removeCallback(_hikVisionCallback)
     synchronized(this@HikPlayerImpl) {
+      _coroutineScope.coroutineContext[Job]?.cancelChildren()
       stopPlay()
       _userID = null
       _playConfig = null
       _surface = null
+      _initFlag.set(false)
+    }
+  }
+
+  /** 初始化配置 */
+  private suspend fun InitConfig.init() {
+    log { "init config ip:$ip|streamType:$streamType" }
+    runCatching {
+      withContext(Dispatchers.IO) {
+        HikVision.login(ip = ip, username = username, password = password)
+      }
+    }.onSuccess { data ->
+      initLoginUser(userID = data)
+      initPlayConfig(ip = ip, streamType = streamType)
+    }.onFailure { e ->
+      if (e is CancellationException) throw e
+      initLoginUser(userID = null)
+      val error = (e as? HikVisionException) ?: HikVisionException(cause = e)
+      callback.onError(error)
+      when (error) {
+        is HikVisionExceptionLoginAccount -> {
+          // 用户名或者密码错误，不重试
+        }
+        is HikVisionExceptionLoginLocked -> {
+          // 账号被锁定，不重试
+        }
+        else -> {
+          startRetryJob(error) { init(ip = ip, username = username, password = password, streamType = streamType) }
+        }
+      }
     }
   }
 
@@ -263,53 +293,55 @@ private class HikPlayerImpl(
     }
   }
 
+  private data class InitConfig(
+    val ip: String,
+    val username: String,
+    val password: String,
+    val streamType: Int,
+  )
+
   private data class PlayConfig(
     val ip: String,
     val streamType: Int,
   )
 
   /** 重试任务 */
-  private var _retryTask: RetryTask? = null
+  private var _retryJob: Job? = null
 
   /** 开始重试任务 */
   @Synchronized
-  private fun startRetryTask(
-    exception: HikVisionException,
-    task: Runnable,
+  private fun startRetryJob(
+    error: HikVisionException,
+    block: () -> Unit,
   ) {
-    if (exception is HikVisionExceptionNotInit) {
+    cancelRetryJob()
+    _coroutineScope.launch {
       // 如果没有初始化，则尝试初始化
-      HikVision.init()
-    }
-    cancelRetryTask()
-    RetryTask(task).also { retryTask ->
-      _retryTask = retryTask
-      handler.postDelayed(retryTask, 5_000L)
-      log { "startRetryTask ${exception.javaClass.simpleName} task:$retryTask" }
+      if (error is HikVisionExceptionNotInit) HikVision.init()
+      delay(5_000)
+      block()
+    }.also { job ->
+      log { "startRetryJob ${error.javaClass.simpleName} job:$job" }
+      _retryJob = job
+      job.invokeOnCompletion { releaseRetryJob(job) }
     }
   }
 
   /** 取消重试任务 */
   @Synchronized
-  private fun cancelRetryTask() {
-    _retryTask?.also { retryTask ->
-      log { "cancelRetryTask task:$retryTask" }
-      _retryTask = null
-      handler.removeCallbacks(retryTask)
+  private fun cancelRetryJob() {
+    _retryJob?.also { job ->
+      log { "cancelRetryJob job:$job" }
+      _retryJob = null
+      job.cancel()
     }
   }
 
-  private inner class RetryTask(
-    private val task: Runnable,
-  ) : Runnable {
-    override fun run() {
-      log { "RetryTask run task:${this@RetryTask}" }
-      synchronized(this@HikPlayerImpl) {
-        if (_retryTask === this@RetryTask) {
-          _retryTask = null
-        }
-      }
-      task.run()
+  @Synchronized
+  private fun releaseRetryJob(job: Job) {
+    if (_retryJob === job) {
+      _retryJob = null
+      log { "releaseRetryJob job:$job" }
     }
   }
 
@@ -325,31 +357,31 @@ private class HikPlayerImpl(
   }
 }
 
-private class MainCallback(
+private class MainPlayerCallback(
   callback: HikPlayer.Callback,
-  private val handler: Handler,
 ) : HikPlayer.Callback() {
+  private val _mainHandler = Handler(Looper.getMainLooper())
   private val _callback = WeakReference(callback)
   private val callback get() = _callback.get()
 
   override fun onError(e: HikVisionException) {
-    handler.post { callback?.onError(e) }
+    _mainHandler.post { callback?.onError(e) }
   }
 
   override fun onStartPlay() {
-    handler.post { callback?.onStartPlay() }
+    _mainHandler.post { callback?.onStartPlay() }
   }
 
   override fun onStopPlay() {
-    handler.post { callback?.onStopPlay() }
+    _mainHandler.post { callback?.onStopPlay() }
   }
 
   override fun onReconnect() {
-    handler.post { callback?.onReconnect() }
+    _mainHandler.post { callback?.onReconnect() }
   }
 
   override fun onReconnectSuccess() {
-    handler.post { callback?.onReconnectSuccess() }
+    _mainHandler.post { callback?.onReconnectSuccess() }
   }
 }
 
