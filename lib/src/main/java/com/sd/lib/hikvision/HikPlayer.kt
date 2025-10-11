@@ -269,6 +269,7 @@ private class HikPlayerImpl(
       Result.failure(error)
     }.onSuccess { userID ->
       // 登录成功
+      log { "handleInitConfig onSuccess ip:${config.ip}|streamType:${config.streamType}" }
       launch {
         _initSuccessFlow.emit(
           InitSuccessData(
@@ -280,6 +281,7 @@ private class HikPlayerImpl(
       }
     }.onFailure { e ->
       // 登录失败
+      log { "handleInitConfig onFailure ip:${config.ip}|streamType:${config.streamType}|error:${e}" }
       launch {
         _initFailureFlow.emit(
           InitFailureData(
