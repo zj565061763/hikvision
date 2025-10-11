@@ -171,6 +171,7 @@ private class HVPlayerImpl(
 
   /** 停止播放 */
   private fun stopPlayInternal() {
+    cancelRetryTask()
     val playHandle = _playHandle
     if (playHandle < 0) return
     callback.onStopPlay()
@@ -258,7 +259,10 @@ private class HVPlayerImpl(
 
   /** 取消重试任务 */
   private fun cancelRetryTask() {
-    _retryTask?.also { handler.removeCallbacks(it) }
+    _retryTask?.also { task ->
+      _retryTask = null
+      handler.removeCallbacks(task)
+    }
   }
 
   init {
