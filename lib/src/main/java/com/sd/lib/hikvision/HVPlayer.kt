@@ -2,6 +2,7 @@ package com.sd.lib.hikvision
 
 import android.graphics.Canvas
 import android.graphics.Rect
+import android.os.Handler
 import android.view.Surface
 import android.view.SurfaceHolder
 import com.hikvision.netsdk.HCNetSDK
@@ -50,13 +51,17 @@ interface HVPlayer {
   companion object {
     @JvmStatic
     fun create(callback: Callback): HVPlayer {
-      return HVPlayerImpl(callback = MainCallback(callback))
+      return HVPlayerImpl(
+        callback = MainCallback(callback, HikVision.mainHandler),
+        handler = HikVision.mainHandler,
+      )
     }
   }
 }
 
 private class HVPlayerImpl(
   private val callback: HVPlayer.Callback,
+  private val handler: Handler,
 ) : HVPlayer {
   /** 用户ID */
   private var _userID: Int? = null
@@ -238,32 +243,62 @@ private class HVPlayerImpl(
     val streamType: Int,
   )
 
+  /** 重试任务 */
+  private var _retryTask: RetryTask? = null
+
+  /** 开始重试任务[task] */
+  private fun retryTask(task: Runnable) {
+    val delayMillis = 5_000L
+    cancelRetryTask()
+    RetryTask(task, handler, delayMillis).also { retryTask ->
+      _retryTask = retryTask
+      handler.postDelayed(retryTask, delayMillis)
+    }
+  }
+
+  /** 取消重试任务 */
+  private fun cancelRetryTask() {
+    _retryTask?.also { handler.removeCallbacks(it) }
+  }
+
   init {
     HikVision.log { "${this@HVPlayerImpl} created" }
   }
 }
 
+private class RetryTask(
+  private val task: Runnable,
+  private val handler: Handler,
+  private val delayMillis: Long,
+) : Runnable {
+  override fun run() {
+    task.run()
+    handler.postDelayed(this@RetryTask, delayMillis)
+  }
+}
+
 private class MainCallback(
   private val callback: HVPlayer.Callback,
+  private val handler: Handler,
 ) : HVPlayer.Callback() {
   override fun onError(e: HikVisionException) {
-    HikVision.mainHandler.post { callback.onError(e) }
+    handler.post { callback.onError(e) }
   }
 
   override fun onStartPlay() {
-    HikVision.mainHandler.post { callback.onStartPlay() }
+    handler.post { callback.onStartPlay() }
   }
 
   override fun onStopPlay() {
-    HikVision.mainHandler.post { callback.onStopPlay() }
+    handler.post { callback.onStopPlay() }
   }
 
   override fun onReconnect() {
-    HikVision.mainHandler.post { callback.onReconnect() }
+    handler.post { callback.onReconnect() }
   }
 
   override fun onReconnectSuccess() {
-    HikVision.mainHandler.post { callback.onReconnectSuccess() }
+    handler.post { callback.onReconnectSuccess() }
   }
 }
 
