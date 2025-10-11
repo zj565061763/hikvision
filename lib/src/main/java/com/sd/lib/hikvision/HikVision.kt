@@ -107,6 +107,17 @@ object HikVision {
             password = password,
           )
         }
+
+        // 账号被锁定
+        SDKError.NET_DVR_USER_LOCKED -> {
+          HikVisionExceptionLoginLocked(
+            code = code,
+            ip = ip,
+            username = username,
+            password = password,
+          )
+        }
+
         else -> {
           HikVisionExceptionLogin(
             code = code,

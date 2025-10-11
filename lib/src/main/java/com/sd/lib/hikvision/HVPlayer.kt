@@ -116,6 +116,9 @@ private class HVPlayerImpl(
         is HikVisionExceptionLoginAccount -> {
           // 用户名或者密码错误，不重试
         }
+        is HikVisionExceptionLoginLocked -> {
+          // 账号被锁定，不重试
+        }
         is HikVisionExceptionLogin -> {
           HikVision.log { "${this@HVPlayerImpl} startRetryTask init when ${HikVisionExceptionLogin::class.java.simpleName}" }
           startRetryTask { init(ip = ip, username = username, password = password, streamType = streamType) }
