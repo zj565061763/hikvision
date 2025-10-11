@@ -30,38 +30,8 @@ import com.sd.lib.hikvision.HikVisionExceptionNotInit
 import com.sd.lib.hikvision.HikVisionExceptionPlayFailed
 
 class SampleActivity : ComponentActivity() {
+  private val _player by lazy { HVPlayer.create(_callback) }
   private var _tips by mutableStateOf("")
-
-  private val _player = HVPlayer.create(object : HVPlayer.Callback() {
-    override fun onError(e: HikVisionException) {
-      logMsg { "onError:$e" }
-      _tips = when (e) {
-        is HikVisionExceptionNotInit -> "未初始化"
-        is HikVisionExceptionLogin -> "登录失败(${e.code})"
-        is HikVisionExceptionPlayFailed -> "播放失败(${e.code})"
-        else -> "异常:$e"
-      }
-    }
-
-    override fun onStartPlay() {
-      logMsg { "onStartPlay" }
-      _tips = ""
-    }
-
-    override fun onStopPlay() {
-      logMsg { "onStopPlay" }
-    }
-
-    override fun onReconnect() {
-      logMsg { "onReconnect" }
-      _tips = "重连中..."
-    }
-
-    override fun onReconnectSuccess() {
-      logMsg { "onReconnectSuccess" }
-      _tips = ""
-    }
-  })
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -94,6 +64,38 @@ class SampleActivity : ComponentActivity() {
   override fun onDestroy() {
     super.onDestroy()
     _player.release()
+  }
+
+  /** 回调对象 */
+  private val _callback = object : HVPlayer.Callback() {
+    override fun onError(e: HikVisionException) {
+      logMsg { "onError:$e" }
+      _tips = when (e) {
+        is HikVisionExceptionNotInit -> "未初始化"
+        is HikVisionExceptionLogin -> "登录失败(${e.code})"
+        is HikVisionExceptionPlayFailed -> "播放失败(${e.code})"
+        else -> "异常:$e"
+      }
+    }
+
+    override fun onStartPlay() {
+      logMsg { "onStartPlay" }
+      _tips = ""
+    }
+
+    override fun onStopPlay() {
+      logMsg { "onStopPlay" }
+    }
+
+    override fun onReconnect() {
+      logMsg { "onReconnect" }
+      _tips = "重连中..."
+    }
+
+    override fun onReconnectSuccess() {
+      logMsg { "onReconnectSuccess" }
+      _tips = ""
+    }
   }
 }
 
