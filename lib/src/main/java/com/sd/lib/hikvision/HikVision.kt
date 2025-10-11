@@ -3,6 +3,7 @@ package com.sd.lib.hikvision
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.hikvision.netsdk.ExceptionCallBack
 import com.hikvision.netsdk.HCNetSDK
 import com.hikvision.netsdk.NET_DVR_DEVICEINFO_V30
 import java.util.Collections
@@ -11,13 +12,12 @@ import java.util.concurrent.ConcurrentHashMap
 object HikVision {
   /** 是否已经初始化 */
   private var _hasInit = false
-  /** IP对应的登录信息 */
-  private val _loginInfo: MutableMap<String, LoginInfo> = mutableMapOf()
-  /** 登录用户回调 */
-  private val _loginUserCallbacks: MutableSet<LoginUserCallback> = Collections.newSetFromMap(ConcurrentHashMap())
-
   /** 是否调试模式 */
   private var _debug = false
+
+  /** IP对应的登录信息 */
+  private val _loginInfo: MutableMap<String, LoginInfo> = mutableMapOf()
+  private val _callbacks: MutableSet<Callback> = Collections.newSetFromMap(ConcurrentHashMap())
 
   internal val mainHandler = Handler(Looper.getMainLooper())
 
@@ -29,6 +29,9 @@ object HikVision {
       _debug = debug
       _hasInit = HCNetSDK.getInstance().NET_DVR_Init()
       log { "init:$_hasInit" }
+      if (_hasInit) {
+        HCNetSDK.getInstance().NET_DVR_SetExceptionCallBack(_exceptionCallback)
+      }
       return _hasInit
     }
   }
@@ -85,42 +88,49 @@ object HikVision {
 
     log { "login success ip:$ip|userID:$userID" }
     _loginInfo[ip] = LoginInfo(config = config, userID = userID)
-    notifyLoginUserCallbacks(ip = ip, userID = userID)
+    notifyCallbacksLoginUser(ip = ip, userID = userID)
     return userID
   }
 
   /** 退出登录 */
   private fun logout(ip: String) {
     _loginInfo.remove(ip)?.also { info ->
-      notifyLoginUserCallbacks(ip = ip, userID = null)
+      notifyCallbacksLoginUser(ip = ip, userID = null)
       HCNetSDK.getInstance().NET_DVR_Logout_V30(info.userID).also {
         log { "logout ip:$ip|userID:${info.userID}|ret:$it" }
       }
     }
   }
 
-  internal fun addLoginUserCallback(callback: LoginUserCallback) {
-    if (_loginUserCallbacks.add(callback)) {
-      log { "addLoginUserCallback callback:$callback|size:${_loginUserCallbacks.size}" }
-    }
-  }
-
-  internal fun removeLoginUserCallback(callback: LoginUserCallback) {
-    if (_loginUserCallbacks.remove(callback)) {
-      log { "removeLoginUserCallback callback:$callback|size:${_loginUserCallbacks.size}" }
-    }
-  }
-
-  private fun notifyLoginUserCallbacks(ip: String, userID: Int?) {
+  private fun notifyCallbacksLoginUser(ip: String, userID: Int?) {
+    log { "notifyCallbacksLoginUser ip:$ip|userID:$userID" }
     mainHandler.post {
-      log { "notifyLoginUserCallbacks ip:$ip|userID:$userID|size:${_loginUserCallbacks.size}" }
-      _loginUserCallbacks.forEach { it.onUser(ip = ip, userID = userID) }
+      _callbacks.forEach { it.onUser(ip = ip, userID = userID) }
+    }
+  }
+
+  internal fun addCallback(callback: Callback) {
+    if (_callbacks.add(callback)) {
+      log { "addCallback callback:$callback|size:${_callbacks.size}" }
+    }
+  }
+
+  internal fun removeCallback(callback: Callback) {
+    if (_callbacks.remove(callback)) {
+      log { "removeCallback callback:$callback|size:${_callbacks.size}" }
     }
   }
 
   private fun checkInit() {
     if (!_hasInit) {
       throw HikVisionExceptionNotInit()
+    }
+  }
+
+  private val _exceptionCallback = ExceptionCallBack { type, userID, handle ->
+    log { "ExceptionCallBack type:$type|userID:$userID|handle:$handle" }
+    mainHandler.post {
+      _callbacks.forEach { it.onException(type = type, userID = userID) }
     }
   }
 
@@ -144,7 +154,8 @@ object HikVision {
     val userID: Int,
   )
 
-  internal interface LoginUserCallback {
+  internal interface Callback {
     fun onUser(ip: String, userID: Int?)
+    fun onException(type: Int, userID: Int)
   }
 }

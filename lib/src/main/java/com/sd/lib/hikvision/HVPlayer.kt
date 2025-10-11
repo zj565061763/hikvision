@@ -81,7 +81,7 @@ private class HVPlayerImpl(
       callback.onError((e as? HikVisionException) ?: HikVisionException(cause = e))
     }
 
-    HikVision.addLoginUserCallback(_loginUserCallback)
+    HikVision.addCallback(_hikVisionCallback)
     return loginResult.isSuccess
   }
 
@@ -164,7 +164,7 @@ private class HVPlayerImpl(
 
   override fun release() {
     HikVision.log { "${this@HVPlayerImpl} release" }
-    HikVision.removeLoginUserCallback(_loginUserCallback)
+    HikVision.removeCallback(_hikVisionCallback)
     synchronized(this@HVPlayerImpl) {
       stopPlay()
       _userID = null
@@ -173,13 +173,19 @@ private class HVPlayerImpl(
     }
   }
 
-  private val _loginUserCallback = object : HikVision.LoginUserCallback {
+  private val _hikVisionCallback = object : HikVision.Callback {
     override fun onUser(ip: String, userID: Int?) {
       synchronized(this@HVPlayerImpl) {
         if (ip == _playConfig?.ip) {
-          HikVision.log { "${this@HVPlayerImpl} LoginUserCallback userID:$userID" }
+          HikVision.log { "${this@HVPlayerImpl} HikVision.Callback.onUser userID:$userID" }
           initLoginUser(userID)
         }
+      }
+    }
+
+    override fun onException(type: Int, userID: Int) {
+      if (userID == _userID) {
+        HikVision.log { "${this@HVPlayerImpl} HikVision.Callback.onException type:$type|userID:$userID" }
       }
     }
   }
