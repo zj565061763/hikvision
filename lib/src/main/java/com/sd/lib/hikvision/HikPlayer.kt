@@ -113,10 +113,10 @@ private class HikPlayerImpl(
       log { "init" }
       HikVision.addCallback(_hikVisionCallback)
       _coroutineScope.launch {
-        _initSuccessFlow.collect { it.handleInitSuccess() }
+        _initSuccessFlow.collect { it.onInitSuccess() }
       }
       _coroutineScope.launch {
-        _initFailureFlow.collect { it.handleInitFailure() }
+        _initFailureFlow.collect { it.onInitFailure() }
       }
       _coroutineScope.launch {
         _initConfigFlow.filterNotNull().collectLatest { config ->
@@ -301,15 +301,15 @@ private class HikPlayerImpl(
   }
 
   /** 处理初始化成功 */
-  private fun InitSuccessData.handleInitSuccess() {
-    log { "handleInitSuccess ip:${ip}|streamType:${streamType}|userID:${userID}" }
+  private fun InitSuccessData.onInitSuccess() {
+    log { "onInitSuccess ip:${ip}|streamType:${streamType}|userID:${userID}" }
     initLoginUser(userID)
     initPlayConfig(ip = ip, streamType = streamType)
   }
 
   /** 处理初始化失败 */
-  private fun InitFailureData.handleInitFailure() {
-    log { "handleInitFailure error:${error}" }
+  private fun InitFailureData.onInitFailure() {
+    log { "onInitFailure error:${error}" }
     initLoginUser(userID = null)
     when (error) {
       is HikVisionExceptionLoginAccount -> {
