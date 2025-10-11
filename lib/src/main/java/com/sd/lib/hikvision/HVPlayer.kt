@@ -90,7 +90,7 @@ private class HVPlayerImpl(
     if (username.isEmpty()) return false
     if (password.isEmpty()) return false
 
-    HikVision.log { "${this@HVPlayerImpl} init ip:$ip|streamType:$streamType" }
+    log { "init ip:$ip|streamType:$streamType" }
     cancelRetryTask()
     val loginResult = runCatching {
       HikVision.login(ip = ip, username = username, password = password)
@@ -127,7 +127,7 @@ private class HVPlayerImpl(
   @Synchronized
   override fun setSurface(surface: Surface?) {
     if (_surface != surface) {
-      HikVision.log { "${this@HVPlayerImpl} setSurface surface:$surface" }
+      log { "setSurface surface:$surface" }
       _surface = surface
       restartPlayIfNeed()
     }
@@ -135,14 +135,14 @@ private class HVPlayerImpl(
 
   @Synchronized
   override fun startPlay() {
-    HikVision.log { "${this@HVPlayerImpl} startPlay" }
+    log { "startPlay" }
     _requirePlay = true
     startPlayInternal()
   }
 
   @Synchronized
   override fun stopPlay() {
-    HikVision.log { "${this@HVPlayerImpl} stopPlay" }
+    log { "stopPlay" }
     _requirePlay = false
     cancelRetryTask()
     stopPlayInternal()
@@ -183,13 +183,13 @@ private class HVPlayerImpl(
     if (playHandle < 0) {
       // 播放失败
       val code = getSDKLastErrorCode()
-      HikVision.log { "${this@HVPlayerImpl} startPlayInternal failed code:$code|userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
+      log { "startPlayInternal failed code:$code|userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
       val error = code.asHikVisionExceptionNotInit() ?: HikVisionExceptionPlayFailed(code = code)
       callback.onError(error)
       startRetryTask(error) { startPlayInternal() }
     } else {
       // 播放成功
-      HikVision.log { "${this@HVPlayerImpl} startPlayInternal success userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
+      log { "startPlayInternal success userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
       callback.onStartPlay()
     }
   }
@@ -200,7 +200,7 @@ private class HVPlayerImpl(
     if (playHandle < 0) return
     callback.onStopPlay()
     HCNetSDK.getInstance().NET_DVR_StopRealPlay(playHandle).also { ret ->
-      HikVision.log { "${this@HVPlayerImpl} stopPlayInternal playHandle:$playHandle|ret:$ret" }
+      log { "stopPlayInternal playHandle:$playHandle|ret:$ret" }
     }
     _playHandle = -1
   }
@@ -211,7 +211,7 @@ private class HVPlayerImpl(
   }
 
   override fun release() {
-    HikVision.log { "${this@HVPlayerImpl} release" }
+    log { "release" }
     HikVision.removeCallback(_hikVisionCallback)
     synchronized(this@HVPlayerImpl) {
       stopPlay()
@@ -225,7 +225,7 @@ private class HVPlayerImpl(
     override fun onUser(ip: String, userID: Int?) {
       synchronized(this@HVPlayerImpl) {
         if (ip == _playConfig?.ip) {
-          HikVision.log { "${this@HVPlayerImpl} HikVision.Callback.onUser userID:$userID" }
+          log { "HikVision.Callback.onUser userID:$userID" }
           initLoginUser(userID)
         }
       }
@@ -234,7 +234,7 @@ private class HVPlayerImpl(
     override fun onException(type: Int, userID: Int) {
       synchronized(this@HVPlayerImpl) {
         if (userID == _userID) {
-          HikVision.log { "${this@HVPlayerImpl} HikVision.Callback.onException type:$type|userID:$userID" }
+          log { "HikVision.Callback.onException type:$type|userID:$userID" }
           when (type) {
             HCNetSDK.EXCEPTION_RECONNECT -> callback.onReconnect()
             HCNetSDK.PREVIEW_RECONNECTSUCCESS -> callback.onReconnectSuccess()
@@ -247,7 +247,7 @@ private class HVPlayerImpl(
   @Synchronized
   private fun initLoginUser(userID: Int?) {
     if (_userID != userID) {
-      HikVision.log { "${this@HVPlayerImpl} initLoginUser userID:$userID" }
+      log { "initLoginUser userID:$userID" }
       _userID = userID
       restartPlayIfNeed()
     }
@@ -257,7 +257,7 @@ private class HVPlayerImpl(
   private fun initPlayConfig(ip: String, streamType: Int) {
     val config = PlayConfig(ip = ip, streamType = streamType)
     if (_playConfig != config) {
-      HikVision.log { "${this@HVPlayerImpl} initPlayConfig ip:$ip|streamType:$streamType" }
+      log { "initPlayConfig ip:$ip|streamType:$streamType" }
       _playConfig = config
       restartPlayIfNeed()
     }
@@ -285,7 +285,7 @@ private class HVPlayerImpl(
     RetryTask(task).also { retryTask ->
       _retryTask = retryTask
       handler.postDelayed(retryTask, 5_000L)
-      HikVision.log { "${this@HVPlayerImpl} startRetryTask ${exception.javaClass.simpleName} task:$retryTask" }
+      log { "startRetryTask ${exception.javaClass.simpleName} task:$retryTask" }
     }
   }
 
@@ -293,7 +293,7 @@ private class HVPlayerImpl(
   @Synchronized
   private fun cancelRetryTask() {
     _retryTask?.also { retryTask ->
-      HikVision.log { "${this@HVPlayerImpl} cancelRetryTask task:$retryTask" }
+      log { "cancelRetryTask task:$retryTask" }
       _retryTask = null
       handler.removeCallbacks(retryTask)
     }
@@ -303,7 +303,7 @@ private class HVPlayerImpl(
     private val task: Runnable,
   ) : Runnable {
     override fun run() {
-      HikVision.log { "${this@HVPlayerImpl} RetryTask run task:${this@RetryTask}" }
+      log { "RetryTask run task:${this@RetryTask}" }
       synchronized(this@HVPlayerImpl) {
         if (_retryTask === this@RetryTask) {
           _retryTask = null
@@ -314,7 +314,14 @@ private class HVPlayerImpl(
   }
 
   init {
-    HikVision.log { "${this@HVPlayerImpl} created" }
+    log { "created" }
+  }
+
+  private inline fun log(block: () -> String) {
+    HikVision.log {
+      val instance = "${this@HVPlayerImpl.javaClass.simpleName}@${Integer.toHexString(this@HVPlayerImpl.hashCode())}"
+      "$instance ${block()}"
+    }
   }
 }
 
