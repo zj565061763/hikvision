@@ -69,10 +69,13 @@ private class HVPlayerImpl(
       HikVision.login(ip = ip, username = username, password = password)
     }
 
+    // 登录成功
     loginResult.onSuccess { data ->
       initLoginUser(userID = data)
       initPlayConfig(ip = ip, streamType = streamType)
     }
+
+    // 登录失败
     loginResult.onFailure { e ->
       initLoginUser(userID = null)
       callback.onError((e as? HikVisionException) ?: HikVisionException(cause = e))
