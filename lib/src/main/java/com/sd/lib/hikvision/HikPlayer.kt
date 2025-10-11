@@ -125,11 +125,14 @@ private class HikPlayerImpl(
     // 取消重试任务
     cancelRetryJob()
 
-    _initConfigFlow.value = InitConfig(
-      ip = ip,
-      username = username,
-      password = password,
-      streamType = streamType,
+    // 提交初始化配置
+    submitInitConfig(
+      InitConfig(
+        ip = ip,
+        username = username,
+        password = password,
+        streamType = streamType,
+      )
     )
   }
 
@@ -239,6 +242,14 @@ private class HikPlayerImpl(
     }
   }
 
+  /** 提交初始化配置 */
+  private fun submitInitConfig(config: InitConfig) {
+    if (_initFlag.get()) {
+      log { "submitInitConfig ip:${config.ip}|streamType:${config.streamType}" }
+      _initConfigFlow.value = config
+    }
+  }
+
   /** 处理初始化配置 */
   private suspend fun handleInitConfig(config: InitConfig) = coroutineScope {
     log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType}" }
@@ -299,14 +310,7 @@ private class HikPlayerImpl(
         // 账号被锁定，不重试
       }
       else -> {
-        startRetryJob(error) {
-          init(
-            ip = config.ip,
-            username = config.username,
-            password = config.password,
-            streamType = config.streamType
-          )
-        }
+        startRetryJob(error) { submitInitConfig(config) }
       }
     }
   }
