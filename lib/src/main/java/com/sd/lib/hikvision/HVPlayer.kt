@@ -108,24 +108,14 @@ private class HVPlayerImpl(
       val error = (e as? HikVisionException) ?: HikVisionException(cause = e)
       callback.onError(error)
       when (error) {
-        is HikVisionExceptionNotInit -> {
-          HikVision.log { "${this@HVPlayerImpl} startRetryTask init when ${HikVisionExceptionNotInit::class.java.simpleName}" }
-          HikVision.init()
-          startRetryTask { init(ip = ip, username = username, password = password, streamType = streamType) }
-        }
         is HikVisionExceptionLoginAccount -> {
           // 用户名或者密码错误，不重试
         }
         is HikVisionExceptionLoginLocked -> {
           // 账号被锁定，不重试
         }
-        is HikVisionExceptionLogin -> {
-          HikVision.log { "${this@HVPlayerImpl} startRetryTask init when ${HikVisionExceptionLogin::class.java.simpleName}" }
-          startRetryTask { init(ip = ip, username = username, password = password, streamType = streamType) }
-        }
         else -> {
-          HikVision.log { "${this@HVPlayerImpl} startRetryTask init when $error" }
-          startRetryTask { init(ip = ip, username = username, password = password, streamType = streamType) }
+          startRetryTask(error) { init(ip = ip, username = username, password = password, streamType = streamType) }
         }
       }
     }
@@ -196,7 +186,7 @@ private class HVPlayerImpl(
       HikVision.log { "${this@HVPlayerImpl} startPlayInternal failed code:$code|userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
       val error = code.asHikVisionExceptionNotInit() ?: HikVisionExceptionPlayFailed(code = code)
       callback.onError(error)
-      startRetryTask { startPlayInternal() }
+      startRetryTask(error) { startPlayInternal() }
     } else {
       // 播放成功
       HikVision.log { "${this@HVPlayerImpl} startPlayInternal success userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
@@ -283,12 +273,19 @@ private class HVPlayerImpl(
 
   /** 开始重试任务 */
   @Synchronized
-  private fun startRetryTask(task: Runnable) {
+  private fun startRetryTask(
+    exception: HikVisionException,
+    task: Runnable,
+  ) {
+    if (exception is HikVisionExceptionNotInit) {
+      // 如果没有初始化，则尝试初始化
+      HikVision.init()
+    }
     cancelRetryTask()
     RetryTask(task).also { retryTask ->
       _retryTask = retryTask
       handler.postDelayed(retryTask, 5_000L)
-      HikVision.log { "${this@HVPlayerImpl} startRetryTask task:$retryTask" }
+      HikVision.log { "${this@HVPlayerImpl} startRetryTask ${exception.javaClass.simpleName} task:$retryTask" }
     }
   }
 
