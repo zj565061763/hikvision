@@ -245,21 +245,20 @@ private class HVPlayerImpl(
   )
 
   /** 重试任务 */
-  private var _retryTask: RetryTask? = null
+  private var _retryTask: Runnable? = null
 
   /** 开始重试任务[task] */
-  private fun retryTask(task: Runnable) {
-    val delayMillis = 5_000L
+  private fun startRetryTask(task: Runnable) {
     cancelRetryTask()
-    RetryTask(task, handler, delayMillis).also { retryTask ->
-      _retryTask = retryTask
-      handler.postDelayed(retryTask, delayMillis)
-    }
+    _retryTask = task
+    handler.postDelayed(task, 5_000L)
+    HikVision.log { "${this@HVPlayerImpl} startRetryTask task:$task" }
   }
 
   /** 取消重试任务 */
   private fun cancelRetryTask() {
     _retryTask?.also { task ->
+      HikVision.log { "${this@HVPlayerImpl} cancelRetryTask task:$task" }
       _retryTask = null
       handler.removeCallbacks(task)
     }
@@ -267,17 +266,6 @@ private class HVPlayerImpl(
 
   init {
     HikVision.log { "${this@HVPlayerImpl} created" }
-  }
-}
-
-private class RetryTask(
-  private val task: Runnable,
-  private val handler: Handler,
-  private val delayMillis: Long,
-) : Runnable {
-  override fun run() {
-    task.run()
-    handler.postDelayed(this@RetryTask, delayMillis)
   }
 }
 
