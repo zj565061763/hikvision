@@ -398,7 +398,9 @@ private class HikPlayerImpl(
       // 如果没有初始化，则尝试初始化
       if (error is HikVisionExceptionNotInit) HikVision.init()
       delay(5_000)
+      log { "startRetryJob block start..." }
       block()
+      log { "startRetryJob block finish..." }
     }.also { job ->
       log { "startRetryJob ${error.javaClass.simpleName} job:$job" }
       _retryJob = job
@@ -420,7 +422,6 @@ private class HikPlayerImpl(
   private fun releaseRetryJob(job: Job) {
     if (_retryJob === job) {
       _retryJob = null
-      log { "releaseRetryJob job:$job" }
     }
   }
 
