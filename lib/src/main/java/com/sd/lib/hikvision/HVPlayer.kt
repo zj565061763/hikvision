@@ -32,8 +32,13 @@ interface HVPlayer {
   /** 释放 */
   fun release()
 
-  interface Callback {
-    fun onError(e: HikVisionException)
+  open class Callback {
+    /** 错误 */
+    open fun onError(e: HikVisionException) = Unit
+    /** 重连 */
+    open fun onReconnect() = Unit
+    /** 重连成功 */
+    open fun onReconnectSuccess() = Unit
   }
 
   companion object {
@@ -187,6 +192,10 @@ private class HVPlayerImpl(
       synchronized(this@HVPlayerImpl) {
         if (userID == _userID) {
           HikVision.log { "${this@HVPlayerImpl} HikVision.Callback.onException type:$type|userID:$userID" }
+          when (type) {
+            HCNetSDK.EXCEPTION_RECONNECT -> callback.onReconnect()
+            HCNetSDK.PREVIEW_RECONNECTSUCCESS -> callback.onReconnectSuccess()
+          }
         }
       }
     }
@@ -223,9 +232,17 @@ private class HVPlayerImpl(
 
 private class MainCallback(
   private val callback: HVPlayer.Callback,
-) : HVPlayer.Callback {
+) : HVPlayer.Callback() {
   override fun onError(e: HikVisionException) {
     HikVision.mainHandler.post { callback.onError(e) }
+  }
+
+  override fun onReconnect() {
+    HikVision.mainHandler.post { callback.onReconnect() }
+  }
+
+  override fun onReconnectSuccess() {
+    HikVision.mainHandler.post { callback.onReconnectSuccess() }
   }
 }
 
