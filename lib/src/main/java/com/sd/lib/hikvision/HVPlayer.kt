@@ -153,7 +153,6 @@ private class HVPlayerImpl(
 
   /** 开始播放 */
   private fun startPlayInternal() {
-    cancelRetryTask()
     if (!_requirePlay) {
       /** [startPlay]还未调用 */
       return
@@ -168,6 +167,10 @@ private class HVPlayerImpl(
     val playConfig = _playConfig ?: return
     val surface = _surface ?: return
 
+    // 取消重试任务
+    cancelRetryTask()
+
+    // 播放信息
     val playInfo = NET_DVR_PREVIEWINFO().apply {
       this.lChannel = 1
       this.dwStreamType = playConfig.streamType
