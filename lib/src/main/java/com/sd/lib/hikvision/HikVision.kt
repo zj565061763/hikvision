@@ -25,6 +25,7 @@ object HikVision {
   /** 初始化 */
   @JvmStatic
   fun init(
+    /** 是否调试模式，日志tag:HikVisionSDK */
     debug: Boolean = false,
     callback: Callback? = null,
   ): Boolean {
