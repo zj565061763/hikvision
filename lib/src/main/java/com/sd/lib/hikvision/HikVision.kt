@@ -23,13 +23,17 @@ object HikVision {
 
   /** 初始化 */
   @JvmStatic
-  fun init(debug: Boolean = false): Boolean {
+  fun init(
+    debug: Boolean = false,
+    callback: Callback? = null,
+  ): Boolean {
     synchronized(this@HikVision) {
       if (_hasInit) return true
       _debug = debug
       _hasInit = HCNetSDK.getInstance().NET_DVR_Init()
       log { "init:$_hasInit" }
       if (_hasInit) {
+        if (callback != null) addCallback(callback)
         HCNetSDK.getInstance().NET_DVR_SetExceptionCallBack(_exceptionCallback)
           .also { log { "NET_DVR_SetExceptionCallBack ret:$it" } }
       }
@@ -155,7 +159,7 @@ object HikVision {
     val userID: Int,
   )
 
-  internal interface Callback {
+  interface Callback {
     fun onUser(ip: String, userID: Int?)
     fun onException(type: Int, userID: Int)
   }
