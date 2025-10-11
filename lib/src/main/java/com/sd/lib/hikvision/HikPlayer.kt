@@ -344,19 +344,6 @@ private class HikPlayerImpl(
     val streamType: Int,
   )
 
-  /** 初始化成功数据 */
-  private data class InitSuccessData(
-    val ip: String,
-    val streamType: Int,
-    val userID: Int,
-  )
-
-  /** 初始化失败数据 */
-  private data class InitFailureData(
-    val config: InitConfig,
-    val error: HikVisionException,
-  )
-
   /** 播放配置 */
   private data class PlayConfig(
     val ip: String,
