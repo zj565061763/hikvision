@@ -184,8 +184,10 @@ private class HVPlayerImpl(
     }
 
     override fun onException(type: Int, userID: Int) {
-      if (userID == _userID) {
-        HikVision.log { "${this@HVPlayerImpl} HikVision.Callback.onException type:$type|userID:$userID" }
+      synchronized(this@HVPlayerImpl) {
+        if (userID == _userID) {
+          HikVision.log { "${this@HVPlayerImpl} HikVision.Callback.onException type:$type|userID:$userID" }
+        }
       }
     }
   }
