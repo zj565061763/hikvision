@@ -148,6 +148,7 @@ private class HVPlayerImpl(
   override fun stopPlay() {
     HikVision.log { "${this@HVPlayerImpl} stopPlay" }
     _requirePlay = false
+    cancelRetryTask()
     stopPlayInternal()
   }
 
@@ -199,7 +200,6 @@ private class HVPlayerImpl(
 
   /** 停止播放 */
   private fun stopPlayInternal() {
-    cancelRetryTask()
     val playHandle = _playHandle
     if (playHandle < 0) return
     callback.onStopPlay()
