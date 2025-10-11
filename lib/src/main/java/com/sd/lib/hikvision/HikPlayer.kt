@@ -252,6 +252,7 @@ private class HikPlayerImpl(
         ).let { Result.success(it) }
       }
     } catch (error: HikVisionException) {
+      _initConfigFlow.value = null
       callback.onError(error)
       Result.failure(error)
     }.onSuccess { userID ->
