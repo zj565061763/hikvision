@@ -113,10 +113,10 @@ private class HikPlayerImpl(
         _initConfigFlow.collectLatest { handleInitConfig(it) }
       }
       _coroutineScope.launch {
-        _initSuccessFlow.collect { handleInitSuccess(it) }
+        _initSuccessFlow.collect { it.handleInitSuccess() }
       }
       _coroutineScope.launch {
-        _initFailureFlow.collect { handleInitFailure(it) }
+        _initFailureFlow.collect { it.handleInitFailure() }
       }
     }
 
@@ -280,17 +280,17 @@ private class HikPlayerImpl(
   }
 
   /** 处理初始化成功 */
-  private fun handleInitSuccess(data: InitSuccessData) {
-    log { "handleInitSuccess ip:${data.ip}|streamType:${data.streamType}|userID:${data.userID}" }
-    initLoginUser(data.userID)
-    initPlayConfig(ip = data.ip, streamType = data.streamType)
+  private fun InitSuccessData.handleInitSuccess() {
+    log { "handleInitSuccess ip:${ip}|streamType:${streamType}|userID:${userID}" }
+    initLoginUser(userID)
+    initPlayConfig(ip = ip, streamType = streamType)
   }
 
   /** 处理初始化失败 */
-  private fun handleInitFailure(data: InitFailureData) {
-    log { "handleInitFailure error:${data.error}" }
+  private fun InitFailureData.handleInitFailure() {
+    log { "handleInitFailure error:${error}" }
     initLoginUser(userID = null)
-    when (data.error) {
+    when (error) {
       is HikVisionExceptionLoginAccount -> {
         // 用户名或者密码错误，不重试
       }
@@ -298,7 +298,14 @@ private class HikPlayerImpl(
         // 账号被锁定，不重试
       }
       else -> {
-        startRetryJob(data.error) { init(ip = ip, username = username, password = password, streamType = streamType) }
+        startRetryJob(error) {
+          init(
+            ip = config.ip,
+            username = config.username,
+            password = config.password,
+            streamType = config.streamType
+          )
+        }
       }
     }
   }
