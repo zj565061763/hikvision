@@ -32,12 +32,22 @@ object HikVision {
       _debug = debug
       _hasInit = HCNetSDK.getInstance().NET_DVR_Init()
       log { "init:$_hasInit" }
-      if (_hasInit) {
-        if (callback != null) addCallback(callback)
-        HCNetSDK.getInstance().NET_DVR_SetExceptionCallBack(_exceptionCallback)
-          .also { log { "NET_DVR_SetExceptionCallBack ret:$it" } }
+      return _hasInit.also { init ->
+        if (init) {
+          log {
+            val version = HCNetSDK.getInstance().NET_DVR_GetSDKVersion()
+            val buildVersion = HCNetSDK.getInstance().NET_DVR_GetSDKBuildVersion()
+            "version:$version|buildVersion:$buildVersion"
+          }
+
+          if (callback != null) {
+            addCallback(callback)
+          }
+
+          HCNetSDK.getInstance().NET_DVR_SetExceptionCallBack(_exceptionCallback)
+            .also { log { "NET_DVR_SetExceptionCallBack ret:$it" } }
+        }
       }
-      return _hasInit
     }
   }
 
