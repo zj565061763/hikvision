@@ -252,6 +252,7 @@ private class HikPlayerImpl(
         ).let { Result.success(it) }
       }
     } catch (error: HikVisionException) {
+      // 重置Flow，允许用相同的配置重试
       _initConfigFlow.value = null
       callback.onError(error)
       Result.failure(error)
