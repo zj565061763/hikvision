@@ -52,7 +52,6 @@ object HikVision {
     /** 密码 */
     password: String,
   ): Int {
-    checkInit()
     require(ip.isNotEmpty())
     require(username.isNotEmpty())
     require(password.isNotEmpty())
@@ -81,7 +80,8 @@ object HikVision {
 
     if (userID < 0) {
       // 登录失败
-      val code = HCNetSDK.getInstance().NET_DVR_GetLastError()
+      val code = getSDKLastErrorCode()
+      code.asHikVisionExceptionNotInit()?.also { throw it }
       log { "login failed ip:$ip|userID:$userID|code:$code" }
       throw HikVisionExceptionLogin(
         code = code,
@@ -123,12 +123,6 @@ object HikVision {
   internal fun removeCallback(callback: Callback) {
     if (_callbacks.remove(callback)) {
       log { "removeCallback callback:$callback|size:${_callbacks.size}" }
-    }
-  }
-
-  private fun checkInit() {
-    if (!_hasInit) {
-      throw HikVisionExceptionNotInit()
     }
   }
 

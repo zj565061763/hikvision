@@ -149,9 +149,10 @@ private class HVPlayerImpl(
 
     if (playHandle < 0) {
       // 播放失败
-      val code = HCNetSDK.getInstance().NET_DVR_GetLastError()
+      val code = getSDKLastErrorCode()
       HikVision.log { "${this@HVPlayerImpl} startPlayInternal failed code:$code|userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
-      callback.onError(HikVisionExceptionPlayFailed(code = code))
+      val error = code.asHikVisionExceptionNotInit() ?: HikVisionExceptionPlayFailed(code = code)
+      callback.onError(error)
     } else {
       // 播放成功
       HikVision.log { "${this@HVPlayerImpl} startPlayInternal success userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
