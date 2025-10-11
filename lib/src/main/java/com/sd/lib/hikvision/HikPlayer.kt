@@ -14,7 +14,6 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
@@ -96,8 +95,6 @@ private class HikPlayerImpl(
 
   private val _coroutineScope = MainScope()
   private val _initConfigFlow = MutableStateFlow<InitConfig?>(null)
-  private val _initSuccessFlow = MutableSharedFlow<InitSuccessData>()
-  private val _initFailureFlow = MutableSharedFlow<InitFailureData>()
 
   override fun init(
     ip: String,
@@ -112,12 +109,6 @@ private class HikPlayerImpl(
     if (_initFlag.compareAndSet(false, true)) {
       log { "init" }
       HikVision.addCallback(_hikVisionCallback)
-      _coroutineScope.launch {
-        _initSuccessFlow.collect { it.onInitSuccess() }
-      }
-      _coroutineScope.launch {
-        _initFailureFlow.collect { it.onInitFailure() }
-      }
       _coroutineScope.launch {
         _initConfigFlow.filterNotNull().collectLatest { config ->
           try {
@@ -262,7 +253,6 @@ private class HikPlayerImpl(
   private suspend fun handleInitConfig(config: InitConfig) = coroutineScope {
     log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType}" }
     try {
-      // 开始登录
       withContext(Dispatchers.IO) {
         HikVision.login(
           ip = config.ip,
@@ -276,41 +266,20 @@ private class HikPlayerImpl(
       callback.onError(error)
       Result.failure(error)
     }.onSuccess { userID ->
-      // 登录成功
       log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onSuccess userID:$userID" }
-      launch {
-        _initSuccessFlow.emit(
-          InitSuccessData(
-            ip = config.ip,
-            streamType = config.streamType,
-            userID = userID,
-          )
-        )
-      }
-    }.onFailure { e ->
-      // 登录失败
-      log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onFailure error:$e" }
-      launch {
-        _initFailureFlow.emit(
-          InitFailureData(
-            config = config,
-            error = e as HikVisionException,
-          )
-        )
-      }
+      launch { onInitSuccess(config, userID) }
+    }.onFailure { error ->
+      log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onFailure error:$error" }
+      launch { onInitFailure(config, error as HikVisionException) }
     }
   }
 
-  /** 处理初始化成功 */
-  private fun InitSuccessData.onInitSuccess() {
-    log { "onInitSuccess ip:${ip}|streamType:${streamType}|userID:${userID}" }
+  private fun onInitSuccess(config: InitConfig, userID: Int) {
     initLoginUser(userID)
-    initPlayConfig(ip = ip, streamType = streamType)
+    initPlayConfig(ip = config.ip, streamType = config.streamType)
   }
 
-  /** 处理初始化失败 */
-  private fun InitFailureData.onInitFailure() {
-    log { "onInitFailure error:${error}" }
+  private fun onInitFailure(config: InitConfig, error: HikVisionException) {
     initLoginUser(userID = null)
     when (error) {
       is HikVisionExceptionLoginAccount -> {
