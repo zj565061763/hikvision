@@ -3,7 +3,7 @@ package com.sd.lib.hikvision
 import com.hikvision.netsdk.HCNetSDK
 import com.hikvision.netsdk.SDKError
 
-open class HikVisionException(
+open class HikVisionException internal constructor(
   message: String? = null,
   cause: Throwable? = null,
 ) : Exception(message, cause)
