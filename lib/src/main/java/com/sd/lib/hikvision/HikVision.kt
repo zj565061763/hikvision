@@ -69,12 +69,14 @@ object HikVision {
     require(username.isNotEmpty())
     require(password.isNotEmpty())
 
+    // 登录配置
     val config = LoginConfig(
       ip = ip,
       username = username,
       password = password
     )
 
+    // 检查登录信息是否已存在
     _loginInfo[ip]?.also { info ->
       if (info.config == config) {
         return info.userID
@@ -83,6 +85,7 @@ object HikVision {
       }
     }
 
+    // 开始登录
     val userID = HCNetSDK.getInstance().NET_DVR_Login_V30(
       config.ip,
       8000,
@@ -94,8 +97,8 @@ object HikVision {
     if (userID < 0) {
       // 登录失败
       val code = getSDKLastErrorCode()
-      code.asHikVisionExceptionNotInit()?.also { throw it }
       log { "login failed ip:$ip|userID:$userID|code:$code" }
+      code.asHikVisionExceptionNotInit()?.also { throw it }
       when (code) {
         // 用户名或者密码错误
         SDKError.NET_DVR_PASSWORD_ERROR,
@@ -133,22 +136,22 @@ object HikVision {
 
     log { "login success ip:$ip|userID:$userID" }
     _loginInfo[ip] = LoginInfo(config = config, userID = userID)
-    notifyCallbacksLoginUser(ip = ip, userID = userID)
+    notifyLoginUser(ip = ip, userID = userID)
     return userID
   }
 
   /** 退出登录 */
   private fun logout(ip: String) {
     _loginInfo.remove(ip)?.also { info ->
-      notifyCallbacksLoginUser(ip = ip, userID = null)
+      notifyLoginUser(ip = ip, userID = null)
       HCNetSDK.getInstance().NET_DVR_Logout_V30(info.userID).also {
         log { "logout ip:$ip|userID:${info.userID}|ret:$it" }
       }
     }
   }
 
-  private fun notifyCallbacksLoginUser(ip: String, userID: Int?) {
-    log { "notifyCallbacksLoginUser ip:$ip|userID:$userID" }
+  private fun notifyLoginUser(ip: String, userID: Int?) {
+    log { "notifyLoginUser ip:$ip|userID:$userID" }
     _mainCallback.onUser(ip = ip, userID = userID)
   }
 
@@ -175,6 +178,7 @@ object HikVision {
     }
   }
 
+  /** 登录配置 */
   private data class LoginConfig(
     /** IP */
     val ip: String,
@@ -184,6 +188,7 @@ object HikVision {
     val password: String,
   )
 
+  /** 登录信息 */
   private data class LoginInfo(
     val config: LoginConfig,
     val userID: Int,
