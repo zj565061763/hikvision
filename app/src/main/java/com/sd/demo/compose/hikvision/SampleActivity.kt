@@ -23,7 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.sd.demo.compose.hikvision.theme.AppTheme
-import com.sd.lib.hikvision.HVPlayer
+import com.sd.lib.hikvision.HikPlayer
 import com.sd.lib.hikvision.HikVisionException
 import com.sd.lib.hikvision.HikVisionExceptionLogin
 import com.sd.lib.hikvision.HikVisionExceptionLoginAccount
@@ -32,7 +32,7 @@ import com.sd.lib.hikvision.HikVisionExceptionNotInit
 import com.sd.lib.hikvision.HikVisionExceptionPlayFailed
 
 class SampleActivity : ComponentActivity() {
-  private val _player by lazy { HVPlayer.create(_callback) }
+  private val _player by lazy { HikPlayer.create(_callback) }
   private var _tips by mutableStateOf("")
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,7 +69,7 @@ class SampleActivity : ComponentActivity() {
   }
 
   /** 回调对象 */
-  private val _callback = object : HVPlayer.Callback() {
+  private val _callback = object : HikPlayer.Callback() {
     override fun onError(e: HikVisionException) {
       logMsg { "onError:$e" }
       _tips = when (e) {
@@ -106,7 +106,7 @@ class SampleActivity : ComponentActivity() {
 
 @Composable
 private fun Content(
-  player: HVPlayer,
+  player: HikPlayer,
   tips: String,
 ) {
   Box {

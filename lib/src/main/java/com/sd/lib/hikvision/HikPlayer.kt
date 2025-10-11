@@ -9,7 +9,7 @@ import com.hikvision.netsdk.HCNetSDK
 import com.hikvision.netsdk.NET_DVR_PREVIEWINFO
 import java.lang.ref.WeakReference
 
-interface HVPlayer {
+interface HikPlayer {
   /** 初始化 */
   fun init(
     /** IP */
@@ -52,12 +52,12 @@ interface HVPlayer {
 
   companion object {
     /**
-     * 创建[HVPlayer]，内部使用弱引用保存[callback]，因此外部需要强引用保存[callback]
+     * 创建[HikPlayer]，内部使用弱引用保存[callback]，因此外部需要强引用保存[callback]
      */
     @JvmStatic
-    fun create(callback: Callback): HVPlayer {
+    fun create(callback: Callback): HikPlayer {
       val handler = HikVision.mainHandler
-      return HVPlayerImpl(
+      return HikPlayerImpl(
         callback = MainCallback(callback, handler),
         handler = handler,
       )
@@ -65,10 +65,10 @@ interface HVPlayer {
   }
 }
 
-private class HVPlayerImpl(
-  private val callback: HVPlayer.Callback,
+private class HikPlayerImpl(
+  private val callback: HikPlayer.Callback,
   private val handler: Handler,
-) : HVPlayer {
+) : HikPlayer {
   /** 用户ID */
   private var _userID: Int? = null
   /** 播放配置 */
@@ -213,7 +213,7 @@ private class HVPlayerImpl(
   override fun release() {
     log { "release" }
     HikVision.removeCallback(_hikVisionCallback)
-    synchronized(this@HVPlayerImpl) {
+    synchronized(this@HikPlayerImpl) {
       stopPlay()
       _userID = null
       _playConfig = null
@@ -223,7 +223,7 @@ private class HVPlayerImpl(
 
   private val _hikVisionCallback = object : HikVision.Callback {
     override fun onUser(ip: String, userID: Int?) {
-      synchronized(this@HVPlayerImpl) {
+      synchronized(this@HikPlayerImpl) {
         if (ip == _playConfig?.ip) {
           log { "HikVision.Callback.onUser userID:$userID" }
           initLoginUser(userID)
@@ -232,7 +232,7 @@ private class HVPlayerImpl(
     }
 
     override fun onException(type: Int, userID: Int) {
-      synchronized(this@HVPlayerImpl) {
+      synchronized(this@HikPlayerImpl) {
         if (userID == _userID) {
           log { "HikVision.Callback.onException type:$type|userID:$userID" }
           when (type) {
@@ -304,7 +304,7 @@ private class HVPlayerImpl(
   ) : Runnable {
     override fun run() {
       log { "RetryTask run task:${this@RetryTask}" }
-      synchronized(this@HVPlayerImpl) {
+      synchronized(this@HikPlayerImpl) {
         if (_retryTask === this@RetryTask) {
           _retryTask = null
         }
@@ -319,16 +319,16 @@ private class HVPlayerImpl(
 
   private inline fun log(block: () -> String) {
     HikVision.log {
-      val instance = "${this@HVPlayerImpl.javaClass.simpleName}@${Integer.toHexString(this@HVPlayerImpl.hashCode())}"
+      val instance = "${this@HikPlayerImpl.javaClass.simpleName}@${Integer.toHexString(this@HikPlayerImpl.hashCode())}"
       "$instance ${block()}"
     }
   }
 }
 
 private class MainCallback(
-  callback: HVPlayer.Callback,
+  callback: HikPlayer.Callback,
   private val handler: Handler,
-) : HVPlayer.Callback() {
+) : HikPlayer.Callback() {
   private val _callback = WeakReference(callback)
   private val callback get() = _callback.get()
 
