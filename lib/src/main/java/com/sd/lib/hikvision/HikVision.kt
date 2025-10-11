@@ -31,6 +31,7 @@ object HikVision {
       log { "init:$_hasInit" }
       if (_hasInit) {
         HCNetSDK.getInstance().NET_DVR_SetExceptionCallBack(_exceptionCallback)
+          .also { log { "NET_DVR_SetExceptionCallBack ret:$it" } }
       }
       return _hasInit
     }
