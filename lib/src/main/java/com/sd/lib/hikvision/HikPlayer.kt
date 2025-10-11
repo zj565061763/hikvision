@@ -15,7 +15,9 @@ import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
@@ -92,7 +94,7 @@ private class HikPlayerImpl(
   private var _playHandle: Int = -1
 
   private val _coroutineScope = MainScope()
-  private val _initConfigFlow = MutableSharedFlow<InitConfig>()
+  private val _initConfigFlow = MutableStateFlow<InitConfig?>(null)
   private val _initSuccessFlow = MutableSharedFlow<InitSuccessData>()
   private val _initFailureFlow = MutableSharedFlow<InitFailureData>()
 
@@ -110,7 +112,7 @@ private class HikPlayerImpl(
       log { "init" }
       HikVision.addCallback(_hikVisionCallback)
       _coroutineScope.launch {
-        _initConfigFlow.collectLatest { handleInitConfig(it) }
+        _initConfigFlow.filterNotNull().collectLatest { handleInitConfig(it) }
       }
       _coroutineScope.launch {
         _initSuccessFlow.collect { it.handleInitSuccess() }
@@ -123,16 +125,12 @@ private class HikPlayerImpl(
     // 取消重试任务
     cancelRetryJob()
 
-    _coroutineScope.launch {
-      _initConfigFlow.emit(
-        InitConfig(
-          ip = ip,
-          username = username,
-          password = password,
-          streamType = streamType,
-        )
-      )
-    }
+    _initConfigFlow.value = InitConfig(
+      ip = ip,
+      username = username,
+      password = password,
+      streamType = streamType,
+    )
   }
 
   @Synchronized
@@ -236,6 +234,7 @@ private class HikPlayerImpl(
       _userID = null
       _playConfig = null
       _surface = null
+      _initConfigFlow.value = null
       _initFlag.set(false)
     }
   }
