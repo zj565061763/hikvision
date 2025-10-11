@@ -18,12 +18,13 @@ object HikVision {
 
   /** IP对应的登录信息 */
   private val _loginInfo: MutableMap<String, LoginInfo> = mutableMapOf()
-  private val _callbacks: MutableSet<Callback> = Collections.newSetFromMap(ConcurrentHashMap())
 
-  internal val mainHandler = Handler(Looper.getMainLooper())
+  private val _callbacks: MutableSet<Callback> = Collections.newSetFromMap(ConcurrentHashMap())
+  private val _mainCallback = MainHikVisionCallback { _callbacks }
 
   /** 初始化 */
   @JvmStatic
+  @JvmOverloads
   fun init(
     /** 是否调试模式，日志tag:HikVisionSDK */
     debug: Boolean = false,
@@ -148,9 +149,7 @@ object HikVision {
 
   private fun notifyCallbacksLoginUser(ip: String, userID: Int?) {
     log { "notifyCallbacksLoginUser ip:$ip|userID:$userID" }
-    mainHandler.post {
-      _callbacks.forEach { it.onUser(ip = ip, userID = userID) }
-    }
+    _mainCallback.onUser(ip = ip, userID = userID)
   }
 
   internal fun addCallback(callback: Callback) {
@@ -167,9 +166,7 @@ object HikVision {
 
   private val _exceptionCallback = ExceptionCallBack { type, userID, handle ->
     log { "ExceptionCallBack type:$type|userID:$userID|handle:$handle" }
-    mainHandler.post {
-      _callbacks.forEach { it.onException(type = type, userID = userID) }
-    }
+    _mainCallback.onException(type = type, userID = userID)
   }
 
   internal inline fun log(block: () -> String) {
@@ -195,5 +192,23 @@ object HikVision {
   interface Callback {
     fun onUser(ip: String, userID: Int?)
     fun onException(type: Int, userID: Int)
+  }
+}
+
+private class MainHikVisionCallback(
+  private val getCallbacks: () -> Iterable<HikVision.Callback>,
+) : HikVision.Callback {
+  private val _mainHandler = Handler(Looper.getMainLooper())
+
+  override fun onUser(ip: String, userID: Int?) {
+    _mainHandler.post {
+      getCallbacks().forEach { it.onUser(ip = ip, userID = userID) }
+    }
+  }
+
+  override fun onException(type: Int, userID: Int) {
+    _mainHandler.post {
+      getCallbacks().forEach { it.onException(type = type, userID = userID) }
+    }
   }
 }
