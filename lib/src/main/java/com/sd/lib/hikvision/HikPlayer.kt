@@ -245,7 +245,6 @@ private class HikPlayerImpl(
   /** 提交初始化配置 */
   private fun submitInitConfig(config: InitConfig) {
     if (_initFlag.get()) {
-      log { "submitInitConfig ip:${config.ip}|streamType:${config.streamType}" }
       _initConfigFlow.value = config
     }
   }
@@ -400,9 +399,8 @@ private class HikPlayerImpl(
       // 如果没有初始化，则尝试初始化
       if (error is HikVisionExceptionNotInit) HikVision.init()
       delay(5_000)
-      log { "startRetryJob block start..." }
+      log { "startRetryJob block..." }
       block()
-      log { "startRetryJob block finish..." }
     }.also { job ->
       log { "startRetryJob ${error.javaClass.simpleName} job:$job" }
       _retryJob = job
