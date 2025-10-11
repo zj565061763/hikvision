@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.cancellation.CancellationException
 
 interface HikPlayer {
   /** 初始化 */
@@ -118,7 +119,14 @@ private class HikPlayerImpl(
         _initFailureFlow.collect { it.handleInitFailure() }
       }
       _coroutineScope.launch {
-        _initConfigFlow.filterNotNull().collectLatest { handleInitConfig(it) }
+        _initConfigFlow.filterNotNull().collectLatest { config ->
+          try {
+            handleInitConfig(config)
+          } catch (e: CancellationException) {
+            log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} cancelled" }
+            throw e
+          }
+        }
       }
     }
 
@@ -268,7 +276,7 @@ private class HikPlayerImpl(
       Result.failure(error)
     }.onSuccess { userID ->
       // 登录成功
-      log { "handleInitConfig onSuccess userID:$userID" }
+      log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onSuccess userID:$userID" }
       launch {
         _initSuccessFlow.emit(
           InitSuccessData(
@@ -280,7 +288,7 @@ private class HikPlayerImpl(
       }
     }.onFailure { e ->
       // 登录失败
-      log { "handleInitConfig onFailure error:$e" }
+      log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onFailure error:$e" }
       launch {
         _initFailureFlow.emit(
           InitFailureData(
