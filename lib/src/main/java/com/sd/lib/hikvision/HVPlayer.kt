@@ -75,6 +75,10 @@ private class HVPlayerImpl(
     password: String,
     streamType: Int,
   ): Boolean {
+    if (ip.isEmpty()) return false
+    if (username.isEmpty()) return false
+    if (password.isEmpty()) return false
+
     HikVision.log { "${this@HVPlayerImpl} init ip:$ip|streamType:$streamType" }
     val loginResult = runCatching {
       HikVision.login(ip = ip, username = username, password = password)
