@@ -173,7 +173,7 @@ object HikVision {
 
   internal inline fun log(block: () -> String) {
     if (_debug) {
-      Log.i("HikVision", block())
+      Log.i("HikVisionSDK", block())
     }
   }
 
