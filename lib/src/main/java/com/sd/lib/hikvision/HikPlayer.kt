@@ -112,13 +112,13 @@ private class HikPlayerImpl(
       log { "init" }
       HikVision.addCallback(_hikVisionCallback)
       _coroutineScope.launch {
-        _initConfigFlow.filterNotNull().collectLatest { handleInitConfig(it) }
-      }
-      _coroutineScope.launch {
         _initSuccessFlow.collect { it.handleInitSuccess() }
       }
       _coroutineScope.launch {
         _initFailureFlow.collect { it.handleInitFailure() }
+      }
+      _coroutineScope.launch {
+        _initConfigFlow.filterNotNull().collectLatest { handleInitConfig(it) }
       }
     }
 
