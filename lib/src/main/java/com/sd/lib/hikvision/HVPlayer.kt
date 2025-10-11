@@ -180,6 +180,7 @@ private class HVPlayerImpl(
       HikVision.log { "${this@HVPlayerImpl} startPlayInternal failed code:$code|userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
       val error = code.asHikVisionExceptionNotInit() ?: HikVisionExceptionPlayFailed(code = code)
       callback.onError(error)
+      startRetryTask { startPlayInternal() }
     } else {
       // 播放成功
       HikVision.log { "${this@HVPlayerImpl} startPlayInternal success userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
