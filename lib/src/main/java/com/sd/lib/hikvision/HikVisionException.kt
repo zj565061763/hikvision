@@ -19,6 +19,14 @@ class HikVisionExceptionLogin(
   val password: String,
 ) : HikVisionException(message = "code($code)")
 
+/** 登录失败，用户名或者密码错误 */
+class HikVisionExceptionLoginAccount(
+  val code: Int,
+  val ip: String,
+  val username: String,
+  val password: String,
+) : HikVisionException(message = "code($code)")
+
 /** 播放失败 */
 class HikVisionExceptionPlayFailed(val code: Int) : HikVisionException(message = "code($code)")
 

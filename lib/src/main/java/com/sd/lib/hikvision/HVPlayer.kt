@@ -7,7 +7,6 @@ import android.view.Surface
 import android.view.SurfaceHolder
 import com.hikvision.netsdk.HCNetSDK
 import com.hikvision.netsdk.NET_DVR_PREVIEWINFO
-import com.hikvision.netsdk.SDKError
 import java.lang.ref.WeakReference
 
 interface HVPlayer {
@@ -114,19 +113,12 @@ private class HVPlayerImpl(
           HikVision.init()
           startRetryTask { init(ip = ip, username = username, password = password, streamType = streamType) }
         }
+        is HikVisionExceptionLoginAccount -> {
+          // 用户名或者密码错误，不重试
+        }
         is HikVisionExceptionLogin -> {
           HikVision.log { "${this@HVPlayerImpl} startRetryTask init when ${HikVisionExceptionLogin::class.java.simpleName}" }
-          when (error.code) {
-            // 用户名或者密码错误
-            SDKError.NET_DVR_PASSWORD_ERROR,
-              // 密码输入格式不正确
-            SDKError.NET_DVR_PASSWORD_FORMAT_ERROR,
-              -> {
-            }
-            else -> {
-              startRetryTask { init(ip = ip, username = username, password = password, streamType = streamType) }
-            }
-          }
+          startRetryTask { init(ip = ip, username = username, password = password, streamType = streamType) }
         }
         else -> {
           HikVision.log { "${this@HVPlayerImpl} startRetryTask init when $error" }

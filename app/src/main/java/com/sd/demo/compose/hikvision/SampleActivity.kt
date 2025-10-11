@@ -26,6 +26,7 @@ import com.sd.demo.compose.hikvision.theme.AppTheme
 import com.sd.lib.hikvision.HVPlayer
 import com.sd.lib.hikvision.HikVisionException
 import com.sd.lib.hikvision.HikVisionExceptionLogin
+import com.sd.lib.hikvision.HikVisionExceptionLoginAccount
 import com.sd.lib.hikvision.HikVisionExceptionNotInit
 import com.sd.lib.hikvision.HikVisionExceptionPlayFailed
 
@@ -73,6 +74,7 @@ class SampleActivity : ComponentActivity() {
       _tips = when (e) {
         is HikVisionExceptionNotInit -> "未初始化"
         is HikVisionExceptionLogin -> "登录失败(${e.code})"
+        is HikVisionExceptionLoginAccount -> "登录失败，用户名或者密码错误"
         is HikVisionExceptionPlayFailed -> "播放失败(${e.code})"
         else -> "异常:$e"
       }

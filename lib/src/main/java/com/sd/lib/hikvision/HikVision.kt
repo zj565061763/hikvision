@@ -6,6 +6,7 @@ import android.util.Log
 import com.hikvision.netsdk.ExceptionCallBack
 import com.hikvision.netsdk.HCNetSDK
 import com.hikvision.netsdk.NET_DVR_DEVICEINFO_V30
+import com.hikvision.netsdk.SDKError
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
@@ -93,12 +94,28 @@ object HikVision {
       val code = getSDKLastErrorCode()
       code.asHikVisionExceptionNotInit()?.also { throw it }
       log { "login failed ip:$ip|userID:$userID|code:$code" }
-      throw HikVisionExceptionLogin(
-        code = code,
-        ip = ip,
-        username = username,
-        password = password,
-      )
+      when (code) {
+        // 用户名或者密码错误
+        SDKError.NET_DVR_PASSWORD_ERROR,
+          // 密码输入格式不正确
+        SDKError.NET_DVR_PASSWORD_FORMAT_ERROR,
+          -> {
+          HikVisionExceptionLoginAccount(
+            code = code,
+            ip = ip,
+            username = username,
+            password = password,
+          )
+        }
+        else -> {
+          HikVisionExceptionLogin(
+            code = code,
+            ip = ip,
+            username = username,
+            password = password,
+          )
+        }
+      }.also { throw it }
     }
 
     log { "login success ip:$ip|userID:$userID" }
