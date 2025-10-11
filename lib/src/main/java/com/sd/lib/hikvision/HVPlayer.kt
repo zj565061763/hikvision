@@ -85,6 +85,7 @@ private class HVPlayerImpl(
     if (password.isEmpty()) return false
 
     HikVision.log { "${this@HVPlayerImpl} init ip:$ip|streamType:$streamType" }
+    cancelRetryTask()
     val loginResult = runCatching {
       HikVision.login(ip = ip, username = username, password = password)
     }
@@ -98,7 +99,23 @@ private class HVPlayerImpl(
     // 登录失败
     loginResult.onFailure { e ->
       initLoginUser(userID = null)
-      callback.onError((e as? HikVisionException) ?: HikVisionException(cause = e))
+      val error = (e as? HikVisionException) ?: HikVisionException(cause = e)
+      callback.onError(error)
+      when (error) {
+        is HikVisionExceptionNotInit -> {
+          HikVision.log { "${this@HVPlayerImpl} startRetryTask init when HikVisionExceptionNotInit" }
+          HikVision.init()
+          startRetryTask { init(ip = ip, username = username, password = password, streamType = streamType) }
+        }
+        is HikVisionExceptionLogin -> {
+          HikVision.log { "${this@HVPlayerImpl} startRetryTask init when HikVisionExceptionLogin" }
+          startRetryTask { init(ip = ip, username = username, password = password, streamType = streamType) }
+        }
+        else -> {
+          HikVision.log { "${this@HVPlayerImpl} startRetryTask init when HikVisionException" }
+          startRetryTask { init(ip = ip, username = username, password = password, streamType = streamType) }
+        }
+      }
     }
 
     HikVision.addCallback(_hikVisionCallback)
@@ -130,6 +147,7 @@ private class HVPlayerImpl(
 
   /** 开始播放 */
   private fun startPlayInternal() {
+    cancelRetryTask()
     if (!_requirePlay) {
       /** [startPlay]还未调用 */
       return
@@ -248,6 +266,7 @@ private class HVPlayerImpl(
   private var _retryTask: RetryTask? = null
 
   /** 开始重试任务 */
+  @Synchronized
   private fun startRetryTask(task: Runnable) {
     cancelRetryTask()
     RetryTask(task).also { retryTask ->
@@ -258,6 +277,7 @@ private class HVPlayerImpl(
   }
 
   /** 取消重试任务 */
+  @Synchronized
   private fun cancelRetryTask() {
     _retryTask?.also { retryTask ->
       HikVision.log { "${this@HVPlayerImpl} cancelRetryTask task:$retryTask" }
@@ -271,6 +291,11 @@ private class HVPlayerImpl(
   ) : Runnable {
     override fun run() {
       HikVision.log { "${this@HVPlayerImpl} RetryTask run task:${this@RetryTask}" }
+      synchronized(this@HVPlayerImpl) {
+        if (_retryTask === this@RetryTask) {
+          _retryTask = null
+        }
+      }
       task.run()
     }
   }
