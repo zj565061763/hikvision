@@ -39,8 +39,8 @@ class SampleActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     _player.init(
       ip = "192.168.100.110",
-      username = "admin",
-      password = "admin",
+      username = "admin1",
+      password = "admin1",
       streamType = 1,
     )
     setContent {
