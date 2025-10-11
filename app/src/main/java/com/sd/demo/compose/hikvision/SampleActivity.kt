@@ -85,6 +85,7 @@ class SampleActivity : ComponentActivity() {
 
     override fun onStopPlay() {
       logMsg { "onStopPlay" }
+      _tips = ""
     }
 
     override fun onReconnect() {
