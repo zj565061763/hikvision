@@ -35,6 +35,12 @@ interface HVPlayer {
   open class Callback {
     /** 错误 */
     open fun onError(e: HikVisionException) = Unit
+
+    /** 开始播放 */
+    open fun onStartPlay() = Unit
+    /** 停止播放 */
+    open fun onStopPlay() = Unit
+
     /** 重连 */
     open fun onReconnect() = Unit
     /** 重连成功 */
@@ -149,6 +155,7 @@ private class HVPlayerImpl(
     } else {
       // 播放成功
       HikVision.log { "${this@HVPlayerImpl} startPlayInternal success userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
+      callback.onStartPlay()
     }
   }
 
@@ -156,6 +163,7 @@ private class HVPlayerImpl(
   private fun stopPlayInternal() {
     val playHandle = _playHandle
     if (playHandle < 0) return
+    callback.onStopPlay()
     HCNetSDK.getInstance().NET_DVR_StopRealPlay(playHandle).also { ret ->
       HikVision.log { "${this@HVPlayerImpl} stopPlayInternal playHandle:$playHandle|ret:$ret" }
     }
@@ -235,6 +243,14 @@ private class MainCallback(
 ) : HVPlayer.Callback() {
   override fun onError(e: HikVisionException) {
     HikVision.mainHandler.post { callback.onError(e) }
+  }
+
+  override fun onStartPlay() {
+    HikVision.mainHandler.post { callback.onStartPlay() }
+  }
+
+  override fun onStopPlay() {
+    HikVision.mainHandler.post { callback.onStopPlay() }
   }
 
   override fun onReconnect() {

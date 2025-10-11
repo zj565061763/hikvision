@@ -43,6 +43,15 @@ class SampleActivity : ComponentActivity() {
       }
     }
 
+    override fun onStartPlay() {
+      logMsg { "onStartPlay" }
+      _tips = ""
+    }
+
+    override fun onStopPlay() {
+      logMsg { "onStopPlay" }
+    }
+
     override fun onReconnect() {
       logMsg { "onReconnect" }
       _tips = "重连中..."
