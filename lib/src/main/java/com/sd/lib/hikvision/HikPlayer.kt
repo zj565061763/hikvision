@@ -12,15 +12,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.coroutines.cancellation.CancellationException
 
 interface HikPlayer {
   /** 初始化 */
@@ -93,7 +92,9 @@ private class HikPlayerImpl(
   private var _playHandle: Int = -1
 
   private val _coroutineScope = MainScope()
-  private val _initConfigFlow = MutableStateFlow<InitConfig?>(null)
+  private val _initConfigFlow = MutableSharedFlow<InitConfig>()
+  private val _initSuccessFlow = MutableSharedFlow<InitSuccessData>()
+  private val _initFailureFlow = MutableSharedFlow<InitFailureData>()
 
   override fun init(
     ip: String,
@@ -109,17 +110,29 @@ private class HikPlayerImpl(
       log { "init" }
       HikVision.addCallback(_hikVisionCallback)
       _coroutineScope.launch {
-        _initConfigFlow.filterNotNull().collectLatest { it.init() }
+        _initConfigFlow.collectLatest { handleInitConfig(it) }
+      }
+      _coroutineScope.launch {
+        _initSuccessFlow.collect { handleInitSuccess(it) }
+      }
+      _coroutineScope.launch {
+        _initFailureFlow.collect { handleInitFailure(it) }
       }
     }
 
+    // 取消重试任务
     cancelRetryJob()
-    _initConfigFlow.value = InitConfig(
-      ip = ip,
-      username = username,
-      password = password,
-      streamType = streamType,
-    )
+
+    _coroutineScope.launch {
+      _initConfigFlow.emit(
+        InitConfig(
+          ip = ip,
+          username = username,
+          password = password,
+          streamType = streamType,
+        )
+      )
+    }
   }
 
   @Synchronized
@@ -148,7 +161,10 @@ private class HikPlayerImpl(
 
   /** 开始播放 */
   @Synchronized
-  private fun startPlayInternal() {
+  private fun startPlayInternal(
+    /** 是否重试任务触发 */
+    isRetry: Boolean = false,
+  ) {
     if (!_requirePlay) {
       /** [startPlay]还未调用 */
       return
@@ -163,8 +179,10 @@ private class HikPlayerImpl(
     val playConfig = _playConfig ?: return
     val surface = _surface ?: return
 
-    // 取消重试任务
-    cancelRetryJob()
+    if (!isRetry) {
+      // 取消重试任务
+      cancelRetryJob()
+    }
 
     // 播放信息
     val playInfo = NET_DVR_PREVIEWINFO().apply {
@@ -185,7 +203,7 @@ private class HikPlayerImpl(
       log { "startPlayInternal failed code:$code|userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
       val error = code.asHikVisionExceptionNotInit() ?: HikVisionExceptionPlayFailed(code = code)
       callback.onError(error)
-      startRetryJob(error) { startPlayInternal() }
+      startRetryJob(error) { startPlayInternal(isRetry = true) }
     } else {
       // 播放成功
       log { "startPlayInternal success userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
@@ -222,31 +240,65 @@ private class HikPlayerImpl(
     }
   }
 
-  /** 初始化配置 */
-  private suspend fun InitConfig.init() {
-    log { "init config ip:$ip|streamType:$streamType" }
-    runCatching {
+  /** 处理初始化配置 */
+  private suspend fun handleInitConfig(config: InitConfig) = coroutineScope {
+    log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType}" }
+    try {
+      // 开始登录
       withContext(Dispatchers.IO) {
-        HikVision.login(ip = ip, username = username, password = password)
+        HikVision.login(
+          ip = config.ip,
+          username = config.username,
+          password = config.password,
+        ).let { Result.success(it) }
       }
-    }.onSuccess { data ->
-      initLoginUser(userID = data)
-      initPlayConfig(ip = ip, streamType = streamType)
-    }.onFailure { e ->
-      if (e is CancellationException) throw e
-      initLoginUser(userID = null)
-      val error = (e as? HikVisionException) ?: HikVisionException(cause = e)
+    } catch (error: HikVisionException) {
       callback.onError(error)
-      when (error) {
-        is HikVisionExceptionLoginAccount -> {
-          // 用户名或者密码错误，不重试
-        }
-        is HikVisionExceptionLoginLocked -> {
-          // 账号被锁定，不重试
-        }
-        else -> {
-          startRetryJob(error) { init(ip = ip, username = username, password = password, streamType = streamType) }
-        }
+      Result.failure(error)
+    }.onSuccess { userID ->
+      // 登录成功
+      launch {
+        _initSuccessFlow.emit(
+          InitSuccessData(
+            ip = config.ip,
+            streamType = config.streamType,
+            userID = userID,
+          )
+        )
+      }
+    }.onFailure { e ->
+      // 登录失败
+      launch {
+        _initFailureFlow.emit(
+          InitFailureData(
+            config = config,
+            error = e as HikVisionException,
+          )
+        )
+      }
+    }
+  }
+
+  /** 处理初始化成功 */
+  private fun handleInitSuccess(data: InitSuccessData) {
+    log { "handleInitSuccess ip:${data.ip}|streamType:${data.streamType}|userID:${data.userID}" }
+    initLoginUser(data.userID)
+    initPlayConfig(ip = data.ip, streamType = data.streamType)
+  }
+
+  /** 处理初始化失败 */
+  private fun handleInitFailure(data: InitFailureData) {
+    log { "handleInitFailure error:${data.error}" }
+    initLoginUser(userID = null)
+    when (data.error) {
+      is HikVisionExceptionLoginAccount -> {
+        // 用户名或者密码错误，不重试
+      }
+      is HikVisionExceptionLoginLocked -> {
+        // 账号被锁定，不重试
+      }
+      else -> {
+        startRetryJob(data.error) { init(ip = ip, username = username, password = password, streamType = streamType) }
       }
     }
   }
@@ -293,6 +345,7 @@ private class HikPlayerImpl(
     }
   }
 
+  /** 初始化配置 */
   private data class InitConfig(
     val ip: String,
     val username: String,
@@ -300,6 +353,20 @@ private class HikPlayerImpl(
     val streamType: Int,
   )
 
+  /** 初始化成功数据 */
+  private data class InitSuccessData(
+    val ip: String,
+    val streamType: Int,
+    val userID: Int,
+  )
+
+  /** 初始化失败数据 */
+  private data class InitFailureData(
+    val config: InitConfig,
+    val error: HikVisionException,
+  )
+
+  /** 播放配置 */
   private data class PlayConfig(
     val ip: String,
     val streamType: Int,
