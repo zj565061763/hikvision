@@ -78,10 +78,7 @@ private class HVPlayerImpl(
       callback.onError((e as? HikVisionException) ?: HikVisionException(cause = e))
     }
 
-    if (loginResult.isSuccess) {
-      HikVision.addLoginUserCallback(_loginUserCallback)
-    }
-
+    HikVision.addLoginUserCallback(_loginUserCallback)
     return loginResult.isSuccess
   }
 
