@@ -7,6 +7,7 @@ import android.view.Surface
 import android.view.SurfaceHolder
 import com.hikvision.netsdk.HCNetSDK
 import com.hikvision.netsdk.NET_DVR_PREVIEWINFO
+import java.lang.ref.WeakReference
 
 interface HVPlayer {
   /** 初始化 */
@@ -33,6 +34,7 @@ interface HVPlayer {
   /** 释放 */
   fun release()
 
+  /** 回调接口，所有方法都在主线程回调 */
   open class Callback {
     /** 错误 */
     open fun onError(e: HikVisionException) = Unit
@@ -49,11 +51,15 @@ interface HVPlayer {
   }
 
   companion object {
+    /**
+     * 创建[HVPlayer]，内部使用弱引用保存[callback]，因此外部需要强引用保存[callback]
+     */
     @JvmStatic
     fun create(callback: Callback): HVPlayer {
+      val handler = HikVision.mainHandler
       return HVPlayerImpl(
-        callback = MainCallback(callback, HikVision.mainHandler),
-        handler = HikVision.mainHandler,
+        callback = MainCallback(callback, handler),
+        handler = handler,
       )
     }
   }
@@ -307,27 +313,30 @@ private class HVPlayerImpl(
 }
 
 private class MainCallback(
-  private val callback: HVPlayer.Callback,
+  callback: HVPlayer.Callback,
   private val handler: Handler,
 ) : HVPlayer.Callback() {
+  private val _callback = WeakReference(callback)
+  private val callback get() = _callback.get()
+
   override fun onError(e: HikVisionException) {
-    handler.post { callback.onError(e) }
+    handler.post { callback?.onError(e) }
   }
 
   override fun onStartPlay() {
-    handler.post { callback.onStartPlay() }
+    handler.post { callback?.onStartPlay() }
   }
 
   override fun onStopPlay() {
-    handler.post { callback.onStopPlay() }
+    handler.post { callback?.onStopPlay() }
   }
 
   override fun onReconnect() {
-    handler.post { callback.onReconnect() }
+    handler.post { callback?.onReconnect() }
   }
 
   override fun onReconnectSuccess() {
-    handler.post { callback.onReconnectSuccess() }
+    handler.post { callback?.onReconnectSuccess() }
   }
 }
 
