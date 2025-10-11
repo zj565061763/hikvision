@@ -59,7 +59,7 @@ object HikVision {
       if (info.config == config) {
         return info.userID
       } else {
-        logout(info)
+        logout(ip)
       }
     }
 
@@ -90,16 +90,12 @@ object HikVision {
   }
 
   /** 退出登录 */
-  private fun logout(info: LoginInfo) {
-    val ip = info.config.ip
-    val userID = info.userID
-    log { "logout ip:$ip|userID:$userID" }
-
-    _loginInfo.remove(ip)
-    notifyLoginUserCallbacks(ip = ip, userID = null)
-
-    HCNetSDK.getInstance().NET_DVR_Logout_V30(userID).also {
-      log { "logout ip:$ip|userID:$userID|ret:$it" }
+  private fun logout(ip: String) {
+    _loginInfo.remove(ip)?.also { info ->
+      notifyLoginUserCallbacks(ip = ip, userID = null)
+      HCNetSDK.getInstance().NET_DVR_Logout_V30(info.userID).also {
+        log { "logout ip:$ip|userID:${info.userID}|ret:$it" }
+      }
     }
   }
 
