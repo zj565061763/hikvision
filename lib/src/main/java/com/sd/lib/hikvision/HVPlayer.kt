@@ -103,16 +103,16 @@ private class HVPlayerImpl(
       callback.onError(error)
       when (error) {
         is HikVisionExceptionNotInit -> {
-          HikVision.log { "${this@HVPlayerImpl} startRetryTask init when HikVisionExceptionNotInit" }
+          HikVision.log { "${this@HVPlayerImpl} startRetryTask init when ${HikVisionExceptionNotInit::class.java.simpleName}" }
           HikVision.init()
           startRetryTask { init(ip = ip, username = username, password = password, streamType = streamType) }
         }
         is HikVisionExceptionLogin -> {
-          HikVision.log { "${this@HVPlayerImpl} startRetryTask init when HikVisionExceptionLogin" }
+          HikVision.log { "${this@HVPlayerImpl} startRetryTask init when ${HikVisionExceptionLogin::class.java.simpleName}" }
           startRetryTask { init(ip = ip, username = username, password = password, streamType = streamType) }
         }
         else -> {
-          HikVision.log { "${this@HVPlayerImpl} startRetryTask init when HikVisionException" }
+          HikVision.log { "${this@HVPlayerImpl} startRetryTask init when $error" }
           startRetryTask { init(ip = ip, username = username, password = password, streamType = streamType) }
         }
       }

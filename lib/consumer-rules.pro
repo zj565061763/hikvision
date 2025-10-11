@@ -1,1 +1,3 @@
 -keep class com.hikvision.netsdk.** { *; }
+-keep class com.sd.lib.hikvision.HikVisionException
+-keep class * extends com.sd.lib.hikvision.HikVisionException
