@@ -13,7 +13,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
@@ -94,6 +93,7 @@ private class HikPlayerImpl(
   private var _playHandle: Int = -1
 
   private val _coroutineScope = MainScope()
+  private val _retryHandler = HikRetryHandler(_coroutineScope)
   private val _initConfigFlow = MutableStateFlow<InitConfig?>(null)
 
   override fun init(
@@ -122,7 +122,7 @@ private class HikPlayerImpl(
     }
 
     // 取消重试任务
-    cancelRetryJob()
+    _retryHandler.cancelRetryJob()
 
     // 提交初始化配置
     submitInitConfig(
@@ -155,7 +155,7 @@ private class HikPlayerImpl(
   override fun stopPlay() {
     log { "stopPlay" }
     _requirePlay = false
-    cancelRetryJob()
+    _retryHandler.cancelRetryJob()
     stopPlayInternal()
   }
 
@@ -181,7 +181,7 @@ private class HikPlayerImpl(
 
     if (!isRetry) {
       // 取消重试任务
-      cancelRetryJob()
+      _retryHandler.cancelRetryJob()
     }
 
     // 播放信息
@@ -203,7 +203,7 @@ private class HikPlayerImpl(
       log { "startPlayInternal failed code:$code|userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
       val error = code.asHikVisionExceptionNotInit() ?: HikVisionExceptionPlayFailed(code = code)
       callback.onError(error)
-      startRetryJob(error) { startPlayInternal(isRetry = true) }
+      _retryHandler.startRetryJob(error) { startPlayInternal(isRetry = true) }
     } else {
       // 播放成功
       log { "startPlayInternal success userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
@@ -289,7 +289,7 @@ private class HikPlayerImpl(
         // 账号被锁定，不重试
       }
       else -> {
-        startRetryJob(error) { submitInitConfig(config) }
+        _retryHandler.startRetryJob(error) { submitInitConfig(config) }
       }
     }
   }
@@ -349,46 +349,6 @@ private class HikPlayerImpl(
     val ip: String,
     val streamType: Int,
   )
-
-  /** 重试任务 */
-  private var _retryJob: Job? = null
-
-  /** 开始重试任务 */
-  @Synchronized
-  private fun startRetryJob(
-    error: HikVisionException,
-    block: () -> Unit,
-  ) {
-    cancelRetryJob()
-    _coroutineScope.launch {
-      // 如果没有初始化，则尝试初始化
-      if (error is HikVisionExceptionNotInit) HikVision.init()
-      delay(5_000)
-      log { "startRetryJob block..." }
-      block()
-    }.also { job ->
-      log { "startRetryJob ${error.javaClass.simpleName} job:$job" }
-      _retryJob = job
-      job.invokeOnCompletion { releaseRetryJob(job) }
-    }
-  }
-
-  /** 取消重试任务 */
-  @Synchronized
-  private fun cancelRetryJob() {
-    _retryJob?.also { job ->
-      log { "cancelRetryJob job:$job" }
-      _retryJob = null
-      job.cancel()
-    }
-  }
-
-  @Synchronized
-  private fun releaseRetryJob(job: Job) {
-    if (_retryJob === job) {
-      _retryJob = null
-    }
-  }
 
   init {
     log { "created" }
