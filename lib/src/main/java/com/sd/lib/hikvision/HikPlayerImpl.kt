@@ -190,7 +190,7 @@ internal class HikPlayerImpl(
       log { "startPlayInternal failed code:$code|userID:$userID|streamType:${config.streamType}" }
       val error = code.asHikExceptionNotInit() ?: HikExceptionPlayFailed(code = code)
       callback.onError(error)
-      log { "startRetryJob startPlayInternal" }
+      log { "startRetryJob" }
       _retryHandler.startRetryJob(error) { startPlayInternal(config, isRetry = true) }
     }
   }
@@ -262,7 +262,7 @@ internal class HikPlayerImpl(
           // 账号被锁定，不重试
         }
         else -> {
-          log { "startRetryJob submitInitConfig" }
+          log { "startRetryJob" }
           _retryHandler.startRetryJob(error) { submitInitConfig(config) }
         }
       }
