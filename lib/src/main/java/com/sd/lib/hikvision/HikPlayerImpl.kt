@@ -21,7 +21,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.coroutines.cancellation.CancellationException
 
 internal class HikPlayerImpl(
   private val callback: HikPlayer.Callback,
@@ -101,15 +100,7 @@ internal class HikPlayerImpl(
           } else {
             log { "onEach InitConfig null" }
           }
-        }.filterNotNull()
-          .collectLatest { config ->
-            try {
-              handleInitConfig(config)
-            } catch (e: CancellationException) {
-              log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} cancelled" }
-              throw e
-            }
-          }
+        }.filterNotNull().collectLatest { config -> handleInitConfig(config) }
       }
 
       // 监听播放配置
@@ -210,7 +201,7 @@ internal class HikPlayerImpl(
 
   /** 处理初始化配置 */
   private suspend fun handleInitConfig(config: InitConfig) = coroutineScope {
-    log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType}" }
+    log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} ..." }
     try {
       withContext(Dispatchers.IO) {
         HikVision.login(
