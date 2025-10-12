@@ -113,18 +113,12 @@ object HikVision {
       SDKError.NET_DVR_PASSWORD_ERROR,
         // 密码输入格式不正确
       SDKError.NET_DVR_PASSWORD_FORMAT_ERROR,
-        -> {
-        HikExceptionLoginAccount(code = code, ip = ip, username = username, password = password)
-      }
+        -> HikExceptionLoginAccount(code)
 
       // 账号被锁定
-      SDKError.NET_DVR_USER_LOCKED -> {
-        HikExceptionLoginLocked(code = code, ip = ip, username = username, password = password)
-      }
+      SDKError.NET_DVR_USER_LOCKED -> HikExceptionLoginLocked(code)
 
-      else -> {
-        HikExceptionLogin(code = code, ip = ip, username = username, password = password)
-      }
+      else -> HikExceptionLogin(code)
     }.also { throw it }
   }
 

@@ -76,8 +76,8 @@ class SampleActivity : ComponentActivity() {
       _tips = when (e) {
         is HikExceptionNotInit -> "未初始化"
         is HikExceptionLogin -> "登录失败(${e.code})"
-        is HikExceptionLoginAccount -> "登录失败，用户名或者密码错误"
-        is HikExceptionLoginLocked -> "登录失败，账号被锁定"
+        is HikExceptionLoginAccount -> "登录失败，用户名或者密码错误(${e.code})"
+        is HikExceptionLoginLocked -> "登录失败，账号被锁定(${e.code})"
         is HikExceptionPlayFailed -> "播放失败(${e.code})"
         else -> "异常:$e"
       }

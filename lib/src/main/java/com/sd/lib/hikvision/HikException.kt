@@ -14,25 +14,16 @@ class HikExceptionNotInit internal constructor() : HikException()
 /** 登录失败，错误码[code] */
 class HikExceptionLogin internal constructor(
   val code: Int,
-  val ip: String,
-  val username: String,
-  val password: String,
 ) : HikException(message = "code($code)")
 
 /** 登录失败，用户名或者密码错误 */
 class HikExceptionLoginAccount internal constructor(
   val code: Int,
-  val ip: String,
-  val username: String,
-  val password: String,
 ) : HikException(message = "code($code)")
 
 /** 登录失败，账号被锁定 */
 class HikExceptionLoginLocked internal constructor(
   val code: Int,
-  val ip: String,
-  val username: String,
-  val password: String,
 ) : HikException(message = "code($code)")
 
 /** 播放失败 */
