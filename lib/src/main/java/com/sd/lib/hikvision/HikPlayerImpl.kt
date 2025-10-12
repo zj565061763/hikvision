@@ -14,6 +14,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -92,19 +93,22 @@ internal class HikPlayerImpl(
 
       // 监听初始化配置
       _coroutineScope.launch {
-        _initConfigFlow.filterNotNull().collectLatest { config ->
-          try {
-            handleInitConfig(config)
-          } catch (e: CancellationException) {
-            log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} cancelled" }
-            throw e
+        _initConfigFlow.filterNotNull()
+          .onEach { config -> log { "onEach InitConfig ip:${config.ip}|streamType:${config.streamType}" } }
+          .collectLatest { config ->
+            try {
+              handleInitConfig(config)
+            } catch (e: CancellationException) {
+              log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} cancelled" }
+              throw e
+            }
           }
-        }
       }
 
       // 监听播放配置
       _coroutineScope.launch {
         _playConfigFlow.collect { config ->
+          log { "play config ip:${config.ip}|userID:${config.userID}|streamType:${config.streamType}|surface:${config.surface}" }
           stopPlayInternal()
           startPlayInternal(config)
         }
