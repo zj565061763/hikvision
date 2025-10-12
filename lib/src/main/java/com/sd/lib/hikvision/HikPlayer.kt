@@ -203,7 +203,10 @@ private class HikPlayerImpl(
       log { "startPlayInternal failed code:$code|userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
       val error = code.asHikVisionExceptionNotInit() ?: HikVisionExceptionPlayFailed(code = code)
       callback.onError(error)
-      _retryHandler.startRetryJob(error) { startPlayInternal(isRetry = true) }
+      _retryHandler.startRetryJob(error) {
+        log { "startRetryJob startPlayInternal" }
+        startPlayInternal(isRetry = true)
+      }
     } else {
       // 播放成功
       log { "startPlayInternal success userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
@@ -289,7 +292,10 @@ private class HikPlayerImpl(
         // 账号被锁定，不重试
       }
       else -> {
-        _retryHandler.startRetryJob(error) { submitInitConfig(config) }
+        _retryHandler.startRetryJob(error) {
+          log { "startRetryJob submitInitConfig" }
+          submitInitConfig(config)
+        }
       }
     }
   }
