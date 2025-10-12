@@ -9,8 +9,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -51,16 +56,6 @@ class SampleActivity : ComponentActivity() {
         )
       }
     }
-  }
-
-  override fun onResume() {
-    super.onResume()
-    _player.startPlay()
-  }
-
-  override fun onPause() {
-    super.onPause()
-    _player.stopPlay()
   }
 
   override fun onDestroy() {
@@ -114,6 +109,7 @@ private fun Content(
       modifier = Modifier.fillMaxSize(),
       onSurface = { player.setSurface(it) },
     )
+
     if (tips.isNotEmpty()) {
       Box(
         modifier = Modifier
@@ -125,6 +121,24 @@ private fun Content(
           text = tips,
           color = Color.White,
         )
+      }
+    }
+
+    Row(
+      modifier = Modifier
+        .align(Alignment.BottomCenter)
+        .navigationBarsPadding()
+    ) {
+      Button(onClick = {
+        player.init(ip = "192.168.100.110", username = "admin110", password = "admin110")
+      }) {
+        Text(text = "Play110")
+      }
+      Spacer(Modifier.width(16.dp))
+      Button(onClick = {
+        player.init(ip = "192.168.100.120", username = "admin120", password = "admin120")
+      }) {
+        Text(text = "Play120")
       }
     }
   }
