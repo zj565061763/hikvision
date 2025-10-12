@@ -10,12 +10,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -30,7 +31,7 @@ internal class HikPlayerImpl(
   private var _initFlag = AtomicBoolean(false)
 
   /** 初始化配置 */
-  private val _initConfigFlow = MutableStateFlow<InitConfig?>(null)
+  private val _initConfigChannel = Channel<InitConfig?>(Channel.CONFLATED)
   /** 播放配置 */
   private val _playConfigFlow = MutableStateFlow(PlayConfig())
 
@@ -96,10 +97,9 @@ internal class HikPlayerImpl(
 
       // 监听初始化配置
       _coroutineScope.launch {
-        _initConfigFlow
+        _initConfigChannel.receiveAsFlow()
           .filterNotNull()
-          .onEach { config -> log { "onEach InitConfig ip:${config.ip}|streamType:${config.streamType}" } }
-          .collectLatest { config -> handleInitConfig(config) }
+          .collectLatest { handleInitConfig(it) }
       }
 
       // 监听播放配置
@@ -184,7 +184,7 @@ internal class HikPlayerImpl(
     log { "release" }
     HikVision.removeCallback(_hikVisionCallback)
     _coroutineScope.coroutineContext[Job]?.cancelChildren()
-    _initConfigFlow.value = null
+    _initConfigChannel.trySend(null)
     _playConfigFlow.update { PlayConfig() }
     stopPlay()
     _initFlag.set(false)
@@ -194,7 +194,7 @@ internal class HikPlayerImpl(
   private fun submitInitConfig(config: InitConfig) {
     if (_initFlag.get()) {
       log { "submit InitConfig ip:${config.ip}|streamType:${config.streamType}" }
-      _initConfigFlow.value = config
+      _initConfigChannel.trySend(config)
     }
   }
 
@@ -217,8 +217,9 @@ internal class HikPlayerImpl(
       log { "handleInitConfig ($count) onFailure isActive:$isActive ip:${config.ip}|streamType:${config.streamType}|error:$error" }
       callback.onError(error)
       Result.failure(error)
-    }.onSuccess { userID ->
+    }.also {
       ensureActive()
+    }.onSuccess { userID ->
       _playConfigFlow.update {
         it.copy(
           ip = config.ip,
@@ -227,10 +228,6 @@ internal class HikPlayerImpl(
         )
       }
     }.onFailure { e ->
-      ensureActive()
-      // 重置，允许用相同的配置重试
-      log { "reset InitConfig" }
-      _initConfigFlow.value = null
       _playConfigFlow.update { it.copy(userID = null) }
       when (val error = e as HikVisionException) {
         is HikVisionExceptionLoginAccount -> {
