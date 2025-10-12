@@ -33,7 +33,7 @@ interface HikPlayer {
   /** 回调接口，所有方法都在主线程回调 */
   open class Callback {
     /** 错误 */
-    open fun onError(e: HikVisionException) = Unit
+    open fun onError(e: HikException) = Unit
 
     /** 开始播放 */
     open fun onStartPlay() = Unit
@@ -64,7 +64,7 @@ private class MainPlayerCallback(
   private val _callback = WeakReference(callback)
   private val callback get() = _callback.get()
 
-  override fun onError(e: HikVisionException) {
+  override fun onError(e: HikException) {
     _mainHandler.post { callback?.onError(e) }
   }
 

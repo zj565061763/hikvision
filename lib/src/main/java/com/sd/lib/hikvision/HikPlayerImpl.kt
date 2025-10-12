@@ -188,7 +188,7 @@ internal class HikPlayerImpl(
       // 播放失败
       val code = getSDKLastErrorCode()
       log { "startPlayInternal failed code:$code|userID:$userID|streamType:${config.streamType}" }
-      val error = code.asHikVisionExceptionNotInit() ?: HikVisionExceptionPlayFailed(code = code)
+      val error = code.asHikVisionExceptionNotInit() ?: HikExceptionPlayFailed(code = code)
       callback.onError(error)
       log { "startRetryJob startPlayInternal" }
       _retryHandler.startRetryJob(error) { startPlayInternal(config, isRetry = true) }
@@ -238,7 +238,7 @@ internal class HikPlayerImpl(
           Result.success(userID)
         }
       }
-    } catch (error: HikVisionException) {
+    } catch (error: HikException) {
       log { "handleInitConfig ($count) onFailure isActive:($isActive) ip:${config.ip}|streamType:${config.streamType}|error:$error" }
       callback.onError(error)
       Result.failure(error)
@@ -254,11 +254,11 @@ internal class HikPlayerImpl(
       }
     }.onFailure { e ->
       _playConfigFlow.update { it.copy(userID = null) }
-      when (val error = e as HikVisionException) {
-        is HikVisionExceptionLoginAccount -> {
+      when (val error = e as HikException) {
+        is HikExceptionLoginAccount -> {
           // 用户名或者密码错误，不重试
         }
-        is HikVisionExceptionLoginLocked -> {
+        is HikExceptionLoginLocked -> {
           // 账号被锁定，不重试
         }
         else -> {

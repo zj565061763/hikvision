@@ -12,13 +12,13 @@ internal class HikRetryHandler(
 
   @Synchronized
   fun startRetryJob(
-    error: HikVisionException,
+    error: HikException,
     block: () -> Unit,
   ) {
     cancelRetryJob()
     coroutineScope.launch {
       // 如果没有初始化，则尝试初始化
-      if (error is HikVisionExceptionNotInit) HikVision.init()
+      if (error is HikExceptionNotInit) HikVision.init()
       delay(5_000)
       block()
     }.also { job ->

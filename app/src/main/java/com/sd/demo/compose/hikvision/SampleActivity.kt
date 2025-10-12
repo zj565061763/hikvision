@@ -29,12 +29,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.sd.demo.compose.hikvision.theme.AppTheme
 import com.sd.lib.hikvision.HikPlayer
-import com.sd.lib.hikvision.HikVisionException
-import com.sd.lib.hikvision.HikVisionExceptionLogin
-import com.sd.lib.hikvision.HikVisionExceptionLoginAccount
-import com.sd.lib.hikvision.HikVisionExceptionLoginLocked
-import com.sd.lib.hikvision.HikVisionExceptionNotInit
-import com.sd.lib.hikvision.HikVisionExceptionPlayFailed
+import com.sd.lib.hikvision.HikException
+import com.sd.lib.hikvision.HikExceptionLogin
+import com.sd.lib.hikvision.HikExceptionLoginAccount
+import com.sd.lib.hikvision.HikExceptionLoginLocked
+import com.sd.lib.hikvision.HikExceptionNotInit
+import com.sd.lib.hikvision.HikExceptionPlayFailed
 
 class SampleActivity : ComponentActivity() {
   private val _player by lazy { HikPlayer.create(_callback) }
@@ -67,14 +67,14 @@ class SampleActivity : ComponentActivity() {
 
   /** 回调对象 */
   private val _callback = object : HikPlayer.Callback() {
-    override fun onError(e: HikVisionException) {
+    override fun onError(e: HikException) {
       logMsg { "onError:$e" }
       _tips = when (e) {
-        is HikVisionExceptionNotInit -> "未初始化"
-        is HikVisionExceptionLogin -> "登录失败(${e.code})"
-        is HikVisionExceptionLoginAccount -> "登录失败，用户名或者密码错误"
-        is HikVisionExceptionLoginLocked -> "登录失败，账号被锁定"
-        is HikVisionExceptionPlayFailed -> "播放失败(${e.code})"
+        is HikExceptionNotInit -> "未初始化"
+        is HikExceptionLogin -> "登录失败(${e.code})"
+        is HikExceptionLoginAccount -> "登录失败，用户名或者密码错误"
+        is HikExceptionLoginLocked -> "登录失败，账号被锁定"
+        is HikExceptionPlayFailed -> "播放失败(${e.code})"
         else -> "异常:$e"
       }
     }

@@ -53,10 +53,10 @@ object HikVision {
   }
 
   /**
-   * 登录并返回userID，需要捕获异常[HikVisionException]，
+   * 登录并返回userID，需要捕获异常[HikException]，
    * 注意：此方法不能在主线程调用，否则会抛异常[IllegalStateException]
    */
-  @Throws(HikVisionException::class)
+  @Throws(HikException::class)
   @Synchronized
   internal fun login(
     /** IP */
@@ -114,16 +114,16 @@ object HikVision {
         // 密码输入格式不正确
       SDKError.NET_DVR_PASSWORD_FORMAT_ERROR,
         -> {
-        HikVisionExceptionLoginAccount(code = code, ip = ip, username = username, password = password)
+        HikExceptionLoginAccount(code = code, ip = ip, username = username, password = password)
       }
 
       // 账号被锁定
       SDKError.NET_DVR_USER_LOCKED -> {
-        HikVisionExceptionLoginLocked(code = code, ip = ip, username = username, password = password)
+        HikExceptionLoginLocked(code = code, ip = ip, username = username, password = password)
       }
 
       else -> {
-        HikVisionExceptionLogin(code = code, ip = ip, username = username, password = password)
+        HikExceptionLogin(code = code, ip = ip, username = username, password = password)
       }
     }.also { throw it }
   }
