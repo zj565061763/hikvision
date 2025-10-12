@@ -105,7 +105,7 @@ object HikVision {
 
     // 登录失败
     val code = getSDKLastErrorCode()
-    log { "login failed ip:$ip|userID:$userID|code:$code" }
+    log { "login failed ip:$ip|code:$code" }
     code.asHikExceptionNotInit()?.also { throw it }
 
     when (code) {
