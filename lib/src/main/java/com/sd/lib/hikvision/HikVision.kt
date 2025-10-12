@@ -173,9 +173,7 @@ object HikVision {
 
   /** 登录配置 */
   private data class LoginConfig(
-    /** 用户名 */
     val username: String,
-    /** 密码 */
     val password: String,
   )
 
