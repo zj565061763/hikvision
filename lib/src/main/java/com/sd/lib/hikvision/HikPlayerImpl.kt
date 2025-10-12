@@ -93,6 +93,23 @@ internal class HikPlayerImpl(
   private fun initPlayer() {
     if (_initFlag.compareAndSet(false, true)) {
       log { "initPlayer" }
+
+      // 监听初始化配置
+      _coroutineScope.launch {
+        _initConfigFlow
+          .filterNotNull()
+          .collectLatest { handleInitConfig(it) }
+      }
+
+      // 监听播放配置
+      _coroutineScope.launch {
+        _playConfigFlow.collect { config ->
+          log { "play config ip:${config.ip}|userID:${config.userID}|streamType:${config.streamType}|surface:${config.surface}" }
+          stopPlayInternal()
+          startPlayInternal(config)
+        }
+      }
+
       // 监听登录信息
       _coroutineScope.launch {
         HikVision.loginInfoFlow.collect { info ->
@@ -116,22 +133,6 @@ internal class HikPlayerImpl(
               HCNetSDK.PREVIEW_RECONNECTSUCCESS -> callback.onReconnectSuccess()
             }
           }
-        }
-      }
-
-      // 监听初始化配置
-      _coroutineScope.launch {
-        _initConfigFlow
-          .filterNotNull()
-          .collectLatest { handleInitConfig(it) }
-      }
-
-      // 监听播放配置
-      _coroutineScope.launch {
-        _playConfigFlow.collect { config ->
-          log { "play config ip:${config.ip}|userID:${config.userID}|streamType:${config.streamType}|surface:${config.surface}" }
-          stopPlayInternal()
-          startPlayInternal(config)
         }
       }
     }
