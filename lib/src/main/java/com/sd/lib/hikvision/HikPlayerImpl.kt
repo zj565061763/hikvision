@@ -208,10 +208,10 @@ internal class HikPlayerImpl(
 
   override fun release() {
     log { "release" }
+    stopPlay()
     _coroutineScope.cancelChildren()
     _initConfigFlow.tryEmit(null)
     _playConfigFlow.update { PlayConfig() }
-    stopPlay()
     _initFlag.set(false)
   }
 
