@@ -188,7 +188,7 @@ internal class HikPlayerImpl(
       // 播放失败
       val code = getSDKLastErrorCode()
       log { "startPlayInternal failed code:$code|userID:$userID|streamType:${config.streamType}" }
-      val error = code.asHikVisionExceptionNotInit() ?: HikExceptionPlayFailed(code = code)
+      val error = code.asHikExceptionNotInit() ?: HikExceptionPlayFailed(code = code)
       callback.onError(error)
       log { "startRetryJob startPlayInternal" }
       _retryHandler.startRetryJob(error) { startPlayInternal(config, isRetry = true) }

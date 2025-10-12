@@ -44,6 +44,6 @@ internal fun getSDKLastErrorCode(): Int {
   return HCNetSDK.getInstance().NET_DVR_GetLastError()
 }
 
-internal fun Int.asHikVisionExceptionNotInit(): HikExceptionNotInit? {
+internal fun Int.asHikExceptionNotInit(): HikExceptionNotInit? {
   return if (this == SDKError.NET_DVR_NOINIT) HikExceptionNotInit() else null
 }
