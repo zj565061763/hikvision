@@ -290,13 +290,16 @@ internal class HikPlayerImpl(
     HikVision.log {
       val msg = block()
       if (msg.isNotEmpty()) {
-        val instance = "${this@HikPlayerImpl.javaClass.simpleName}@${Integer.toHexString(this@HikPlayerImpl.hashCode())}"
-        "$instance $msg"
+        "${this@HikPlayerImpl.simpleID()} $msg"
       } else {
         ""
       }
     }
   }
+}
+
+private fun Any.simpleID(): String {
+  return "${this.javaClass.simpleName}@${Integer.toHexString(this.hashCode())}"
 }
 
 private class CustomSurfaceHolder(
