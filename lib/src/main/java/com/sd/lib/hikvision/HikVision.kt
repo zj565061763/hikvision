@@ -179,7 +179,10 @@ object HikVision {
 
   internal inline fun log(block: () -> String) {
     if (_debug) {
-      Log.i("HikVisionSDK", block())
+      val msg = block()
+      if (msg.isNotEmpty()) {
+        Log.i("HikVisionSDK", msg)
+      }
     }
   }
 

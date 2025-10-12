@@ -21,6 +21,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 internal class HikPlayerImpl(
   private val callback: HikPlayer.Callback,
@@ -41,6 +42,7 @@ internal class HikPlayerImpl(
 
   private val _coroutineScope = MainScope()
   private val _retryHandler = HikRetryHandler(_coroutineScope)
+  private val _initConfigCount = AtomicLong()
 
   override fun init(
     ip: String,
@@ -94,13 +96,10 @@ internal class HikPlayerImpl(
 
       // 监听初始化配置
       _coroutineScope.launch {
-        _initConfigFlow.onEach { config ->
-          if (config != null) {
-            log { "onEach InitConfig ip:${config.ip}|streamType:${config.streamType}" }
-          } else {
-            log { "onEach InitConfig null" }
-          }
-        }.filterNotNull().collectLatest { config -> handleInitConfig(config) }
+        _initConfigFlow
+          .filterNotNull()
+          .onEach { config -> log { "onEach InitConfig ip:${config.ip}|streamType:${config.streamType}" } }
+          .collectLatest { config -> handleInitConfig(config) }
       }
 
       // 监听播放配置
@@ -201,7 +200,8 @@ internal class HikPlayerImpl(
 
   /** 处理初始化配置 */
   private suspend fun handleInitConfig(config: InitConfig) = coroutineScope {
-    log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} ..." }
+    val count = _initConfigCount.incrementAndGet()
+    log { "handleInitConfig ($count) ip:${config.ip}|streamType:${config.streamType} ..." }
     try {
       withContext(Dispatchers.IO) {
         HikVision.login(
@@ -209,12 +209,12 @@ internal class HikPlayerImpl(
           username = config.username,
           password = config.password,
         ).let { userID ->
-          log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onSuccess isActive:$isActive|userID:$userID" }
+          log { "handleInitConfig ($count) onSuccess isActive:$isActive|ip:${config.ip}|streamType:${config.streamType}|userID:$userID" }
           Result.success(userID)
         }
       }
     } catch (error: HikVisionException) {
-      log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onFailure isActive:$isActive|error:$error" }
+      log { "handleInitConfig ($count) onFailure isActive:$isActive|ip:${config.ip}|streamType:${config.streamType}|error:$error" }
       // 重置，允许用相同的配置重试
       _initConfigFlow.value = null
       callback.onError(error)
@@ -290,8 +290,13 @@ internal class HikPlayerImpl(
 
   private inline fun log(block: () -> String) {
     HikVision.log {
-      val instance = "${this@HikPlayerImpl.javaClass.simpleName}@${Integer.toHexString(this@HikPlayerImpl.hashCode())}"
-      "$instance ${block()}"
+      val msg = block()
+      if (msg.isNotEmpty()) {
+        val instance = "${this@HikPlayerImpl.javaClass.simpleName}@${Integer.toHexString(this@HikPlayerImpl.hashCode())}"
+        "$instance $msg"
+      } else {
+        ""
+      }
     }
   }
 }
