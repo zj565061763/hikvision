@@ -207,12 +207,13 @@ internal class HikPlayerImpl(
   }
 
   override fun release() {
-    log { "release" }
+    log { "release start" }
     stopPlay()
     _coroutineScope.cancelChildren()
     _initConfigFlow.tryEmit(null)
     _playConfigFlow.update { PlayConfig() }
     _initFlag.set(false)
+    log { "release finish" }
   }
 
   /** 提交初始化配置 */
