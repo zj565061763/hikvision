@@ -209,12 +209,12 @@ internal class HikPlayerImpl(
           username = config.username,
           password = config.password,
         ).let { userID ->
-          log { "handleInitConfig ($count) onSuccess isActive:$isActive ip:${config.ip}|streamType:${config.streamType}|userID:$userID" }
+          log { "handleInitConfig ($count) onSuccess isActive:($isActive) ip:${config.ip}|streamType:${config.streamType}|userID:$userID" }
           Result.success(userID)
         }
       }
     } catch (error: HikVisionException) {
-      log { "handleInitConfig ($count) onFailure isActive:$isActive ip:${config.ip}|streamType:${config.streamType}|error:$error" }
+      log { "handleInitConfig ($count) onFailure isActive:($isActive) ip:${config.ip}|streamType:${config.streamType}|error:$error" }
       callback.onError(error)
       Result.failure(error)
     }.also {
