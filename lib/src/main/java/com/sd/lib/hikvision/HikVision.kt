@@ -1,7 +1,6 @@
 package com.sd.lib.hikvision
 
 import android.os.Looper
-import android.util.Log
 import com.hikvision.netsdk.ExceptionCallBack
 import com.hikvision.netsdk.HCNetSDK
 import com.hikvision.netsdk.NET_DVR_DEVICEINFO_V30
@@ -14,8 +13,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 object HikVision {
   /** 是否已经初始化 */
   private var _hasInit = false
-  /** 是否调试模式 */
-  private var _debug = false
 
   /** IP对应的登录信息 */
   private val _loginInfo: MutableMap<String, LoginInfo> = mutableMapOf()
@@ -26,16 +23,19 @@ object HikVision {
   internal val loginEventFlow: Flow<HikLoginEvent> = _loginEventFlow.asSharedFlow()
   internal val sdkEventFlow: Flow<HikSDKEvent> = _sdkEventFlow.asSharedFlow()
 
+  /** 打印日志 */
+  private var _log: ((String) -> Unit)? = null
+
   /** 初始化 */
   @JvmStatic
   @JvmOverloads
   fun init(
-    /** 是否调试模式，日志tag:HikVisionSDK */
-    debug: Boolean = false,
+    /** 打印日志 */
+    log: ((String) -> Unit)? = null,
   ): Boolean {
     synchronized(this@HikVision) {
       if (_hasInit) return true
-      _debug = debug
+      _log = log
       _hasInit = HCNetSDK.getInstance().NET_DVR_Init()
       log { "init:$_hasInit" }
       return _hasInit.also { init ->
@@ -149,11 +149,9 @@ object HikVision {
   }
 
   internal inline fun log(block: () -> String) {
-    if (_debug) {
+    _log?.also { log ->
       val msg = block()
-      if (msg.isNotEmpty()) {
-        Log.i("HikVisionSDK", msg)
-      }
+      if (msg.isNotEmpty()) log(msg)
     }
   }
 
