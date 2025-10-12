@@ -196,7 +196,7 @@ internal class HikPlayerImpl(
   /** 提交初始化配置 */
   private fun submitInitConfig(config: InitConfig) {
     if (_initFlag.get()) {
-      log { "submit ip:${config.ip}|streamType:${config.streamType}" }
+      log { "submit InitConfig ip:${config.ip}|streamType:${config.streamType}" }
       _initConfigFlow.value = config
     }
   }
@@ -213,7 +213,8 @@ internal class HikPlayerImpl(
         ).let { Result.success(it) }
       }
     } catch (error: HikVisionException) {
-      // 重置Flow，允许用相同的配置重试
+      // 重置，允许用相同的配置重试
+      log { "reset InitConfig" }
       _initConfigFlow.value = null
       callback.onError(error)
       Result.failure(error)
