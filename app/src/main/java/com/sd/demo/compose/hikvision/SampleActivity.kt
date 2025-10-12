@@ -42,20 +42,22 @@ class SampleActivity : ComponentActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    _player.init(
-      ip = "192.168.100.110",
-      username = "admin1",
-      password = "admin1",
-      streamType = 1,
-    )
+    _player.init(ip = "192.168.100.100", username = "admin100", password = "admin100")
     setContent {
       AppTheme {
-        Content(
-          player = _player,
-          tips = _tips,
-        )
+        Content(player = _player, tips = _tips)
       }
     }
+  }
+
+  override fun onResume() {
+    super.onResume()
+    _player.startPlay()
+  }
+
+  override fun onPause() {
+    super.onPause()
+    _player.stopPlay()
   }
 
   override fun onDestroy() {
@@ -101,10 +103,11 @@ class SampleActivity : ComponentActivity() {
 
 @Composable
 private fun Content(
+  modifier: Modifier = Modifier,
   player: HikPlayer,
   tips: String,
 ) {
-  Box {
+  Box(modifier = modifier.fillMaxSize()) {
     AndroidTextureView(
       modifier = Modifier.fillMaxSize(),
       onSurface = { player.setSurface(it) },
