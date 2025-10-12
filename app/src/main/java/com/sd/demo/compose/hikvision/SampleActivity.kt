@@ -139,13 +139,13 @@ private fun Content(
       Button(onClick = {
         player.init(ip = DEFAULT_IP, username = DEFAULT_USERNAME, password = DEFAULT_PASSWORD)
       }) {
-        Text(text = "Play110")
+        Text(text = "110")
       }
       Spacer(Modifier.width(16.dp))
       Button(onClick = {
         player.init(ip = "192.168.100.120", username = "admin120", password = "admin120")
       }) {
-        Text(text = "Play120")
+        Text(text = "120")
       }
     }
   }
