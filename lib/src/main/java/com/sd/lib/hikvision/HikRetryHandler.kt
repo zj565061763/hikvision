@@ -19,7 +19,7 @@ internal class HikRetryHandler(
     coroutineScope.launch {
       // 如果没有初始化，则尝试初始化
       if (error is HikExceptionNotInit) HikVision.init()
-      delay(5_000)
+      delay(10_000)
       block()
     }.also { job ->
       _retryJob = job
