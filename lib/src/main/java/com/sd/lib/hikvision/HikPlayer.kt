@@ -197,20 +197,20 @@ private class HikPlayerImpl(
     // 保存播放句柄
     _playHandle = playHandle
 
-    if (playHandle < 0) {
+    if (playHandle >= 0) {
+      // 播放成功
+      log { "startPlayInternal success userID:$userID|streamType:${playConfig.streamType}" }
+      callback.onStartPlay()
+    } else {
       // 播放失败
       val code = getSDKLastErrorCode()
-      log { "startPlayInternal failed code:$code|userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
+      log { "startPlayInternal failed code:$code|userID:$userID|streamType:${playConfig.streamType}" }
       val error = code.asHikVisionExceptionNotInit() ?: HikVisionExceptionPlayFailed(code = code)
       callback.onError(error)
       _retryHandler.startRetryJob(error) {
         log { "startRetryJob startPlayInternal" }
         startPlayInternal(isRetry = true)
       }
-    } else {
-      // 播放成功
-      log { "startPlayInternal success userID:$userID|streamType:${playConfig.streamType}|playHandle:$playHandle" }
-      callback.onStartPlay()
     }
   }
 
