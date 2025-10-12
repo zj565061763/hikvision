@@ -1,0 +1,367 @@
+package com.sd.lib.hikvision
+
+import android.graphics.Canvas
+import android.graphics.Rect
+import android.view.Surface
+import android.view.SurfaceHolder
+import com.hikvision.netsdk.HCNetSDK
+import com.hikvision.netsdk.NET_DVR_PREVIEWINFO
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.cancellation.CancellationException
+
+internal class HikPlayerImpl(
+  private val callback: HikPlayer.Callback,
+) : HikPlayer {
+  /** 初始化标志 */
+  private var _initFlag = AtomicBoolean(false)
+
+  /** 初始化配置 */
+  private val _initConfigFlow = MutableStateFlow<InitConfig?>(null)
+  /** 播放配置 */
+  private val _playConfigFlow = MutableStateFlow(PlayConfig())
+
+  /** 是否需要播放 */
+  @Volatile
+  private var _requirePlay = false
+  /** 播放句柄 */
+  private var _playHandle = -1
+
+  private val _coroutineScope = MainScope()
+  private val _retryHandler = HikRetryHandler(_coroutineScope)
+
+  override fun init(
+    ip: String,
+    username: String,
+    password: String,
+    streamType: Int,
+  ) {
+    if (ip.isEmpty()) return
+    if (username.isEmpty()) return
+    if (password.isEmpty()) return
+
+    // 初始化播放器
+    initPlayer()
+
+    // 取消重试任务
+    _retryHandler.cancelRetryJob()
+
+    // 提交初始化配置
+    submitInitConfig(
+      InitConfig(
+        ip = ip,
+        username = username,
+        password = password,
+        streamType = streamType,
+      )
+    )
+  }
+
+  override fun setSurface(surface: Surface?) {
+    _playConfigFlow.update { it.copy(surface = surface) }
+  }
+
+  override fun startPlay() {
+    log { "startPlay" }
+    _requirePlay = true
+    startPlayInternal(_playConfigFlow.value)
+  }
+
+  override fun stopPlay() {
+    log { "stopPlay" }
+    _requirePlay = false
+    _retryHandler.cancelRetryJob()
+    stopPlayInternal()
+  }
+
+  /** 初始化播放器 */
+  private fun initPlayer() {
+    if (_initFlag.compareAndSet(false, true)) {
+      log { "initPlayer" }
+      HikVision.addCallback(_hikVisionCallback)
+
+      // 监听初始化配置
+      _coroutineScope.launch {
+        _initConfigFlow.filterNotNull().collectLatest { config ->
+          try {
+            handleInitConfig(config)
+          } catch (e: CancellationException) {
+            log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} cancelled" }
+            throw e
+          }
+        }
+      }
+
+      // 监听播放配置
+      _coroutineScope.launch {
+        _playConfigFlow.collect { config ->
+          stopPlayInternal()
+          startPlayInternal(config)
+        }
+      }
+    }
+  }
+
+  /** 开始播放 */
+  @Synchronized
+  private fun startPlayInternal(
+    /** 播放配置 */
+    config: PlayConfig,
+    /** 是否重试任务触发 */
+    isRetry: Boolean = false,
+  ) {
+    if (!_requirePlay) {
+      /** [startPlay]还未调用 */
+      return
+    }
+
+    if (_playHandle >= 0) {
+      // 当前正在播放
+      return
+    }
+
+    // 检查播放配置
+    if (config.ip == null) return
+    val userID = config.userID ?: return
+    val surface = config.surface ?: return
+
+    if (!isRetry) {
+      // 取消重试任务
+      _retryHandler.cancelRetryJob()
+    }
+
+    // 播放信息
+    val playInfo = NET_DVR_PREVIEWINFO().apply {
+      this.lChannel = 1
+      this.dwStreamType = config.streamType
+      this.bBlocked = 1
+      this.hHwnd = CustomSurfaceHolder(surface)
+    }
+
+    // 开始播放
+    val playHandle = HCNetSDK.getInstance().NET_DVR_RealPlay_V40(userID, playInfo, null)
+    // 保存播放句柄
+    _playHandle = playHandle
+
+    if (playHandle >= 0) {
+      // 播放成功
+      log { "startPlayInternal success userID:$userID|streamType:${config.streamType}" }
+      callback.onStartPlay()
+    } else {
+      // 播放失败
+      val code = getSDKLastErrorCode()
+      log { "startPlayInternal failed code:$code|userID:$userID|streamType:${config.streamType}" }
+      val error = code.asHikVisionExceptionNotInit() ?: HikVisionExceptionPlayFailed(code = code)
+      callback.onError(error)
+      _retryHandler.startRetryJob(error) {
+        log { "startRetryJob startPlayInternal" }
+        startPlayInternal(config, isRetry = true)
+      }
+    }
+  }
+
+  /** 停止播放 */
+  @Synchronized
+  private fun stopPlayInternal() {
+    val playHandle = _playHandle
+    if (playHandle < 0) return
+    callback.onStopPlay()
+    HCNetSDK.getInstance().NET_DVR_StopRealPlay(playHandle)
+      .also { ret -> log { "stopPlayInternal $ret playHandle:$playHandle" } }
+    _playHandle = -1
+  }
+
+  override fun release() {
+    log { "release" }
+    HikVision.removeCallback(_hikVisionCallback)
+    _coroutineScope.coroutineContext[Job]?.cancelChildren()
+    _initConfigFlow.value = null
+    _playConfigFlow.update { PlayConfig() }
+    stopPlay()
+    _initFlag.set(false)
+  }
+
+  /** 提交初始化配置 */
+  private fun submitInitConfig(config: InitConfig) {
+    if (_initFlag.get()) {
+      log { "submitInitConfig ip:${config.ip}|streamType:${config.streamType}" }
+      _initConfigFlow.value = config
+    }
+  }
+
+  /** 处理初始化配置 */
+  private suspend fun handleInitConfig(config: InitConfig) = coroutineScope {
+    log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType}" }
+    try {
+      withContext(Dispatchers.IO) {
+        HikVision.login(
+          ip = config.ip,
+          username = config.username,
+          password = config.password,
+        ).let { Result.success(it) }
+      }
+    } catch (error: HikVisionException) {
+      // 重置Flow，允许用相同的配置重试
+      _initConfigFlow.value = null
+      callback.onError(error)
+      Result.failure(error)
+    }.onSuccess { userID ->
+      log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onSuccess userID:$userID" }
+      launch { onInitConfigSuccess(config, userID) }
+    }.onFailure { error ->
+      log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onFailure error:$error" }
+      launch { onInitConfigFailure(config, error as HikVisionException) }
+    }
+  }
+
+  private fun onInitConfigSuccess(config: InitConfig, userID: Int) {
+    log { "onInitConfigSuccess ip:${config.ip}|streamType:${config.streamType}|userID:$userID" }
+    _playConfigFlow.update {
+      it.copy(
+        ip = config.ip,
+        userID = userID,
+        streamType = config.streamType,
+      )
+    }
+  }
+
+  private fun onInitConfigFailure(config: InitConfig, error: HikVisionException) {
+    log { "onInitConfigFailure ip:${config.ip}|streamType:${config.streamType}|error:$error" }
+    _playConfigFlow.update { it.copy(userID = null) }
+    when (error) {
+      is HikVisionExceptionLoginAccount -> {
+        // 用户名或者密码错误，不重试
+      }
+      is HikVisionExceptionLoginLocked -> {
+        // 账号被锁定，不重试
+      }
+      else -> {
+        _retryHandler.startRetryJob(error) {
+          log { "startRetryJob submitInitConfig" }
+          submitInitConfig(config)
+        }
+      }
+    }
+  }
+
+  private val _hikVisionCallback = object : HikVision.Callback {
+    override fun onUser(ip: String, userID: Int?) {
+      _playConfigFlow.update { config ->
+        if (config.ip == ip) {
+          config.copy(userID = userID)
+        } else {
+          config
+        }
+      }
+    }
+
+    override fun onException(type: Int, userID: Int) {
+      val config = _playConfigFlow.value
+      if (config.userID == userID) {
+        when (type) {
+          HCNetSDK.EXCEPTION_RECONNECT -> callback.onReconnect()
+          HCNetSDK.PREVIEW_RECONNECTSUCCESS -> callback.onReconnectSuccess()
+        }
+      }
+    }
+  }
+
+  /** 初始化配置 */
+  private data class InitConfig(
+    val ip: String,
+    val username: String,
+    val password: String,
+    val streamType: Int,
+  )
+
+  /** 播放配置 */
+  private data class PlayConfig(
+    val ip: String? = null,
+    val userID: Int? = null,
+    val streamType: Int = 0,
+    val surface: Surface? = null,
+  )
+
+  init {
+    log { "created" }
+  }
+
+  private inline fun log(block: () -> String) {
+    HikVision.log {
+      val instance = "${this@HikPlayerImpl.javaClass.simpleName}@${Integer.toHexString(this@HikPlayerImpl.hashCode())}"
+      "$instance ${block()}"
+    }
+  }
+}
+
+private class CustomSurfaceHolder(
+  private val surface: Surface,
+) : SurfaceHolder {
+  override fun addCallback(callback: SurfaceHolder.Callback?) {
+    HikVision.log { "CustomSurfaceHolder addCallback callback:$callback" }
+  }
+
+  override fun removeCallback(callback: SurfaceHolder.Callback?) {
+    HikVision.log { "CustomSurfaceHolder removeCallback callback:$callback" }
+  }
+
+  override fun isCreating(): Boolean {
+    HikVision.log { "CustomSurfaceHolder isCreating" }
+    return false
+  }
+
+  @Deprecated("Deprecated in Java")
+  override fun setType(type: Int) {
+    HikVision.log { "CustomSurfaceHolder setType type:$type" }
+  }
+
+  override fun setFixedSize(width: Int, height: Int) {
+    HikVision.log { "CustomSurfaceHolder setFixedSize width:$width|height:$height" }
+  }
+
+  override fun setSizeFromLayout() {
+    HikVision.log { "CustomSurfaceHolder setSizeFromLayout" }
+  }
+
+  override fun setFormat(format: Int) {
+    HikVision.log { "CustomSurfaceHolder setFormat format:$format" }
+  }
+
+  override fun setKeepScreenOn(screenOn: Boolean) {
+    HikVision.log { "CustomSurfaceHolder setKeepScreenOn screenOn:$screenOn" }
+  }
+
+  override fun lockCanvas(): Canvas {
+    HikVision.log { "CustomSurfaceHolder lockCanvas" }
+    return Canvas()
+  }
+
+  override fun lockCanvas(dirty: Rect?): Canvas {
+    HikVision.log { "CustomSurfaceHolder lockCanvas dirty:$dirty" }
+    return Canvas()
+  }
+
+  override fun unlockCanvasAndPost(canvas: Canvas?) {
+    HikVision.log { "CustomSurfaceHolder unlockCanvasAndPost canvas:$canvas" }
+  }
+
+  override fun getSurfaceFrame(): Rect {
+    HikVision.log { "CustomSurfaceHolder getSurfaceFrame" }
+    return Rect()
+  }
+
+  override fun getSurface(): Surface {
+    HikVision.log { "CustomSurfaceHolder getSurface" }
+    return surface
+  }
+}
