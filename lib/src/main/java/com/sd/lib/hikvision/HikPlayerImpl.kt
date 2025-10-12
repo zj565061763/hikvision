@@ -201,7 +201,7 @@ internal class HikPlayerImpl(
   /** 处理初始化配置 */
   private suspend fun handleInitConfig(config: InitConfig) = coroutineScope {
     val count = _initConfigCount.incrementAndGet()
-    log { "handleInitConfig ($count) ip:${config.ip}|streamType:${config.streamType} ..." }
+    log { "handleInitConfig ($count) ... ip:${config.ip}|streamType:${config.streamType}" }
     try {
       withContext(Dispatchers.IO) {
         HikVision.login(
