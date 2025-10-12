@@ -99,7 +99,7 @@ object HikVision {
       // 登录成功
       log { "login success ip:$ip|userID:$userID" }
       _loginInfo[ip] = LoginInfo(config = config, userID = userID)
-      notifyLoginInfo(ip = ip, userID = userID)
+      notifyLoginEvent(ip = ip, userID = userID)
       return userID
     }
 
@@ -131,15 +131,15 @@ object HikVision {
   /** 退出登录 */
   private fun logout(ip: String) {
     _loginInfo.remove(ip)?.also { info ->
-      notifyLoginInfo(ip = ip, userID = null)
+      notifyLoginEvent(ip = ip, userID = null)
       HCNetSDK.getInstance().NET_DVR_Logout_V30(info.userID).also {
         log { "logout ip:$ip|userID:${info.userID}|ret:$it" }
       }
     }
   }
 
-  private fun notifyLoginInfo(ip: String, userID: Int?) {
-    log { "notifyLoginInfo ip:$ip|userID:$userID" }
+  private fun notifyLoginEvent(ip: String, userID: Int?) {
+    log { "notifyLoginEvent ip:$ip|userID:$userID" }
     _loginEventFlow.tryEmit(HikLoginEvent(ip = ip, userID = userID))
   }
 
