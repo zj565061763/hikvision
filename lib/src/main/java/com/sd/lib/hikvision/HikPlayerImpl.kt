@@ -6,6 +6,7 @@ import android.view.Surface
 import android.view.SurfaceHolder
 import com.hikvision.netsdk.HCNetSDK
 import com.hikvision.netsdk.NET_DVR_PREVIEWINFO
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
@@ -207,7 +208,7 @@ internal class HikPlayerImpl(
 
   override fun release() {
     log { "release" }
-    _coroutineScope.coroutineContext[Job]?.cancelChildren()
+    _coroutineScope.cancelChildren()
     _initConfigFlow.tryEmit(null)
     _playConfigFlow.update { PlayConfig() }
     stopPlay()
@@ -300,8 +301,12 @@ internal class HikPlayerImpl(
   }
 }
 
+private fun CoroutineScope.cancelChildren() {
+  coroutineContext[Job]?.cancelChildren()
+}
+
 private fun Any.simpleID(): String {
-  return "${this.javaClass.simpleName}@${Integer.toHexString(this.hashCode())}"
+  return "${javaClass.simpleName}@${Integer.toHexString(hashCode())}"
 }
 
 private class CustomSurfaceHolder(
