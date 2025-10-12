@@ -1,14 +1,15 @@
 package com.sd.lib.hikvision
 
-import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.hikvision.netsdk.ExceptionCallBack
 import com.hikvision.netsdk.HCNetSDK
 import com.hikvision.netsdk.NET_DVR_DEVICEINFO_V30
 import com.hikvision.netsdk.SDKError
-import java.util.Collections
-import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 object HikVision {
   /** 是否已经初始化 */
@@ -19,8 +20,11 @@ object HikVision {
   /** IP对应的登录信息 */
   private val _loginInfo: MutableMap<String, LoginInfo> = mutableMapOf()
 
-  private val _callbacks: MutableSet<Callback> = Collections.newSetFromMap(ConcurrentHashMap())
-  private val _mainCallback = MainHikVisionCallback { _callbacks }
+  private val _loginInfoFlow = MutableSharedFlow<HikLoginInfo>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+  private val _sdkEventFlow = MutableSharedFlow<HikSDKEvent>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+  internal val loginInfoFlow: Flow<HikLoginInfo> = _loginInfoFlow.asSharedFlow()
+  internal val sdkEventFlow: Flow<HikSDKEvent> = _sdkEventFlow.asSharedFlow()
 
   /** 初始化 */
   @JvmStatic
@@ -28,7 +32,6 @@ object HikVision {
   fun init(
     /** 是否调试模式，日志tag:HikVisionSDK */
     debug: Boolean = false,
-    callback: Callback? = null,
   ): Boolean {
     synchronized(this@HikVision) {
       if (_hasInit) return true
@@ -42,11 +45,6 @@ object HikVision {
             val buildVersion = HCNetSDK.getInstance().NET_DVR_GetSDKBuildVersion()
             "version:$version|buildVersion:$buildVersion"
           }
-
-          if (callback != null) {
-            addCallback(callback)
-          }
-
           HCNetSDK.getInstance().NET_DVR_SetExceptionCallBack(_exceptionCallback)
             .also { log { "NET_DVR_SetExceptionCallBack ret:$it" } }
         }
@@ -101,7 +99,7 @@ object HikVision {
       // 登录成功
       log { "login success ip:$ip|userID:$userID" }
       _loginInfo[ip] = LoginInfo(config = config, userID = userID)
-      notifyLoginUser(ip = ip, userID = userID)
+      notifyLoginInfo(ip = ip, userID = userID)
       return userID
     }
 
@@ -133,33 +131,21 @@ object HikVision {
   /** 退出登录 */
   private fun logout(ip: String) {
     _loginInfo.remove(ip)?.also { info ->
-      notifyLoginUser(ip = ip, userID = null)
+      notifyLoginInfo(ip = ip, userID = null)
       HCNetSDK.getInstance().NET_DVR_Logout_V30(info.userID).also {
         log { "logout ip:$ip|userID:${info.userID}|ret:$it" }
       }
     }
   }
 
-  private fun notifyLoginUser(ip: String, userID: Int?) {
-    log { "notifyLoginUser ip:$ip|userID:$userID" }
-    _mainCallback.onUser(ip = ip, userID = userID)
-  }
-
-  internal fun addCallback(callback: Callback) {
-    if (_callbacks.add(callback)) {
-      log { "addCallback callback:$callback|size:${_callbacks.size}" }
-    }
-  }
-
-  internal fun removeCallback(callback: Callback) {
-    if (_callbacks.remove(callback)) {
-      log { "removeCallback callback:$callback|size:${_callbacks.size}" }
-    }
+  private fun notifyLoginInfo(ip: String, userID: Int?) {
+    log { "notifyLoginInfo ip:$ip|userID:$userID" }
+    _loginInfoFlow.tryEmit(HikLoginInfo(ip = ip, userID = userID))
   }
 
   private val _exceptionCallback = ExceptionCallBack { type, userID, handle ->
     log { "ExceptionCallBack type:$type|userID:$userID|handle:$handle" }
-    _mainCallback.onException(type = type, userID = userID)
+    _sdkEventFlow.tryEmit(HikSDKEvent(type = type, userID = userID))
   }
 
   internal inline fun log(block: () -> String) {
@@ -182,27 +168,14 @@ object HikVision {
     val config: LoginConfig,
     val userID: Int,
   )
-
-  interface Callback {
-    fun onUser(ip: String, userID: Int?)
-    fun onException(type: Int, userID: Int)
-  }
 }
 
-private class MainHikVisionCallback(
-  private val getCallbacks: () -> Iterable<HikVision.Callback>,
-) : HikVision.Callback {
-  private val _mainHandler = Handler(Looper.getMainLooper())
+internal data class HikLoginInfo(
+  val ip: String,
+  val userID: Int?,
+)
 
-  override fun onUser(ip: String, userID: Int?) {
-    _mainHandler.post {
-      getCallbacks().forEach { it.onUser(ip = ip, userID = userID) }
-    }
-  }
-
-  override fun onException(type: Int, userID: Int) {
-    _mainHandler.post {
-      getCallbacks().forEach { it.onException(type = type, userID = userID) }
-    }
-  }
-}
+internal data class HikSDKEvent(
+  val type: Int,
+  val userID: Int,
+)

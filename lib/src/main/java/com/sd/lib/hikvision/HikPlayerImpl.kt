@@ -93,7 +93,31 @@ internal class HikPlayerImpl(
   private fun initPlayer() {
     if (_initFlag.compareAndSet(false, true)) {
       log { "initPlayer" }
-      HikVision.addCallback(_hikVisionCallback)
+      // 监听登录信息
+      _coroutineScope.launch {
+        HikVision.loginInfoFlow.collect { info ->
+          _playConfigFlow.update { config ->
+            if (config.ip == info.ip) {
+              config.copy(userID = info.userID)
+            } else {
+              config
+            }
+          }
+        }
+      }
+
+      // 监听SDK事件
+      _coroutineScope.launch {
+        HikVision.sdkEventFlow.collect { event ->
+          val config = _playConfigFlow.value
+          if (config.userID == event.userID) {
+            when (event.type) {
+              HCNetSDK.EXCEPTION_RECONNECT -> callback.onReconnect()
+              HCNetSDK.PREVIEW_RECONNECTSUCCESS -> callback.onReconnectSuccess()
+            }
+          }
+        }
+      }
 
       // 监听初始化配置
       _coroutineScope.launch {
@@ -182,7 +206,6 @@ internal class HikPlayerImpl(
 
   override fun release() {
     log { "release" }
-    HikVision.removeCallback(_hikVisionCallback)
     _coroutineScope.coroutineContext[Job]?.cancelChildren()
     _initConfigFlow.tryEmit(null)
     _playConfigFlow.update { PlayConfig() }
@@ -239,28 +262,6 @@ internal class HikPlayerImpl(
         else -> {
           log { "startRetryJob submitInitConfig" }
           _retryHandler.startRetryJob(error) { submitInitConfig(config) }
-        }
-      }
-    }
-  }
-
-  private val _hikVisionCallback = object : HikVision.Callback {
-    override fun onUser(ip: String, userID: Int?) {
-      _playConfigFlow.update { config ->
-        if (config.ip == ip) {
-          config.copy(userID = userID)
-        } else {
-          config
-        }
-      }
-    }
-
-    override fun onException(type: Int, userID: Int) {
-      val config = _playConfigFlow.value
-      if (config.userID == userID) {
-        when (type) {
-          HCNetSDK.EXCEPTION_RECONNECT -> callback.onReconnect()
-          HCNetSDK.PREVIEW_RECONNECTSUCCESS -> callback.onReconnectSuccess()
         }
       }
     }
