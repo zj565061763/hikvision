@@ -215,8 +215,6 @@ internal class HikPlayerImpl(
       }
     } catch (error: HikVisionException) {
       log { "handleInitConfig ($count) onFailure isActive:$isActive ip:${config.ip}|streamType:${config.streamType}|error:$error" }
-      // 重置，允许用相同的配置重试
-      _initConfigFlow.value = null
       callback.onError(error)
       Result.failure(error)
     }.onSuccess { userID ->
@@ -230,6 +228,9 @@ internal class HikPlayerImpl(
       }
     }.onFailure { e ->
       ensureActive()
+      // 重置，允许用相同的配置重试
+      log { "reset InitConfig" }
+      _initConfigFlow.value = null
       _playConfigFlow.update { it.copy(userID = null) }
       when (val error = e as HikVisionException) {
         is HikVisionExceptionLoginAccount -> {
