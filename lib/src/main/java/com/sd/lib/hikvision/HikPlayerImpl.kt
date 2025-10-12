@@ -111,9 +111,9 @@ internal class HikPlayerImpl(
         }
       }
 
-      // 监听登录信息
+      // 监听登录事件
       _coroutineScope.launch {
-        HikVision.loginInfoFlow.collect { info ->
+        HikVision.loginEventFlow.collect { info ->
           _playConfigFlow.update { config ->
             if (config.ip == info.ip) {
               config.copy(userID = info.userID)

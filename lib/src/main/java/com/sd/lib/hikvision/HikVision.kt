@@ -20,10 +20,10 @@ object HikVision {
   /** IP对应的登录信息 */
   private val _loginInfo: MutableMap<String, LoginInfo> = mutableMapOf()
 
-  private val _loginInfoFlow = MutableSharedFlow<HikLoginInfo>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+  private val _loginEventFlow = MutableSharedFlow<HikLoginEvent>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
   private val _sdkEventFlow = MutableSharedFlow<HikSDKEvent>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
-  internal val loginInfoFlow: Flow<HikLoginInfo> = _loginInfoFlow.asSharedFlow()
+  internal val loginEventFlow: Flow<HikLoginEvent> = _loginEventFlow.asSharedFlow()
   internal val sdkEventFlow: Flow<HikSDKEvent> = _sdkEventFlow.asSharedFlow()
 
   /** 初始化 */
@@ -140,7 +140,7 @@ object HikVision {
 
   private fun notifyLoginInfo(ip: String, userID: Int?) {
     log { "notifyLoginInfo ip:$ip|userID:$userID" }
-    _loginInfoFlow.tryEmit(HikLoginInfo(ip = ip, userID = userID))
+    _loginEventFlow.tryEmit(HikLoginEvent(ip = ip, userID = userID))
   }
 
   private val _exceptionCallback = ExceptionCallBack { type, userID, handle ->
@@ -170,11 +170,13 @@ object HikVision {
   )
 }
 
-internal data class HikLoginInfo(
+/** 登录事件 */
+internal data class HikLoginEvent(
   val ip: String,
   val userID: Int?,
 )
 
+/** SDK事件 */
 internal data class HikSDKEvent(
   val type: Int,
   val userID: Int,
