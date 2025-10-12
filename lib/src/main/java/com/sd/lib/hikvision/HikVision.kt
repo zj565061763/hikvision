@@ -126,8 +126,12 @@ object HikVision {
   private fun logout(ip: String) {
     _loginInfo.remove(ip)?.also { info ->
       notifyLoginEvent(ip = ip, userID = null)
-      HCNetSDK.getInstance().NET_DVR_Logout_V30(info.userID).also {
-        log { "logout ip:$ip|userID:${info.userID}|ret:$it" }
+      HCNetSDK.getInstance().NET_DVR_Logout_V30(info.userID).also { ret ->
+        if (ret) {
+          log { "logout success ip:$ip|userID:${info.userID}" }
+        } else {
+          log { "logout failed ip:$ip|userID:${info.userID}|code:${getSDKLastErrorCode()}" }
+        }
       }
     }
   }
