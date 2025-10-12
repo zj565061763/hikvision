@@ -9,10 +9,10 @@ open class HikVisionException internal constructor(
 ) : Exception(message, cause)
 
 /** 未初始化 */
-class HikVisionExceptionNotInit : HikVisionException()
+class HikVisionExceptionNotInit internal constructor() : HikVisionException()
 
 /** 登录失败，错误码[code] */
-class HikVisionExceptionLogin(
+class HikVisionExceptionLogin internal constructor(
   val code: Int,
   val ip: String,
   val username: String,
@@ -20,7 +20,7 @@ class HikVisionExceptionLogin(
 ) : HikVisionException(message = "code($code)")
 
 /** 登录失败，用户名或者密码错误 */
-class HikVisionExceptionLoginAccount(
+class HikVisionExceptionLoginAccount internal constructor(
   val code: Int,
   val ip: String,
   val username: String,
@@ -28,7 +28,7 @@ class HikVisionExceptionLoginAccount(
 ) : HikVisionException(message = "code($code)")
 
 /** 登录失败，账号被锁定 */
-class HikVisionExceptionLoginLocked(
+class HikVisionExceptionLoginLocked internal constructor(
   val code: Int,
   val ip: String,
   val username: String,
@@ -36,7 +36,9 @@ class HikVisionExceptionLoginLocked(
 ) : HikVisionException(message = "code($code)")
 
 /** 播放失败 */
-class HikVisionExceptionPlayFailed(val code: Int) : HikVisionException(message = "code($code)")
+class HikVisionExceptionPlayFailed internal constructor(
+  val code: Int,
+) : HikVisionException(message = "code($code)")
 
 internal fun getSDKLastErrorCode(): Int {
   return HCNetSDK.getInstance().NET_DVR_GetLastError()
