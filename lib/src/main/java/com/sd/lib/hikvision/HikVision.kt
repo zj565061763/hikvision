@@ -75,7 +75,6 @@ object HikVision {
 
     // 登录配置
     val config = LoginConfig(
-      ip = ip,
       username = username,
       password = password
     )
@@ -91,10 +90,10 @@ object HikVision {
 
     // 开始登录
     val userID = HCNetSDK.getInstance().NET_DVR_Login_V30(
-      config.ip,
+      ip,
       8000,
-      config.username,
-      config.password,
+      username,
+      password,
       NET_DVR_DEVICEINFO_V30(),
     )
 
@@ -174,8 +173,6 @@ object HikVision {
 
   /** 登录配置 */
   private data class LoginConfig(
-    /** IP */
-    val ip: String,
     /** 用户名 */
     val username: String,
     /** 密码 */
