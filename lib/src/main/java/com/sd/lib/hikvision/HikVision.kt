@@ -110,37 +110,23 @@ object HikVision {
     val code = getSDKLastErrorCode()
     log { "login failed ip:$ip|userID:$userID|code:$code" }
     code.asHikVisionExceptionNotInit()?.also { throw it }
+
     when (code) {
       // 用户名或者密码错误
       SDKError.NET_DVR_PASSWORD_ERROR,
         // 密码输入格式不正确
       SDKError.NET_DVR_PASSWORD_FORMAT_ERROR,
         -> {
-        HikVisionExceptionLoginAccount(
-          code = code,
-          ip = ip,
-          username = username,
-          password = password,
-        )
+        HikVisionExceptionLoginAccount(code = code, ip = ip, username = username, password = password)
       }
 
       // 账号被锁定
       SDKError.NET_DVR_USER_LOCKED -> {
-        HikVisionExceptionLoginLocked(
-          code = code,
-          ip = ip,
-          username = username,
-          password = password,
-        )
+        HikVisionExceptionLoginLocked(code = code, ip = ip, username = username, password = password)
       }
 
       else -> {
-        HikVisionExceptionLogin(
-          code = code,
-          ip = ip,
-          username = username,
-          password = password,
-        )
+        HikVisionExceptionLogin(code = code, ip = ip, username = username, password = password)
       }
     }.also { throw it }
   }
