@@ -45,7 +45,7 @@ object HikVision {
             "init success version:$version|buildVersion:$buildVersion"
           }
           HCNetSDK.getInstance().NET_DVR_SetExceptionCallBack(_exceptionCallback)
-            .also { log { "SetExceptionCallBack ret:$it" } }
+            .also { log { "SetExceptionCallBack $it" } }
         } else {
           log { "init failed" }
         }
