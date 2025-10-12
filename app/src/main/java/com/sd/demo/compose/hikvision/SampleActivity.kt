@@ -28,13 +28,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.sd.demo.compose.hikvision.theme.AppTheme
-import com.sd.lib.hikvision.HikPlayer
 import com.sd.lib.hikvision.HikException
 import com.sd.lib.hikvision.HikExceptionLogin
 import com.sd.lib.hikvision.HikExceptionLoginAccount
 import com.sd.lib.hikvision.HikExceptionLoginLocked
 import com.sd.lib.hikvision.HikExceptionNotInit
 import com.sd.lib.hikvision.HikExceptionPlayFailed
+import com.sd.lib.hikvision.HikPlayer
+
+private const val DEFAULT_IP = "192.168.100.110"
+private const val DEFAULT_USERNAME = "admin110"
+private const val DEFAULT_PASSWORD = "admin110"
 
 class SampleActivity : ComponentActivity() {
   private val _player by lazy { HikPlayer.create(_callback) }
@@ -42,7 +46,7 @@ class SampleActivity : ComponentActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    _player.init(ip = "192.168.100.100", username = "admin100", password = "admin100")
+    _player.init(ip = DEFAULT_IP, username = DEFAULT_USERNAME, password = DEFAULT_PASSWORD)
     setContent {
       AppTheme {
         Content(player = _player, tips = _tips)
@@ -133,7 +137,7 @@ private fun Content(
         .navigationBarsPadding()
     ) {
       Button(onClick = {
-        player.init(ip = "192.168.100.110", username = "admin110", password = "admin110")
+        player.init(ip = DEFAULT_IP, username = DEFAULT_USERNAME, password = DEFAULT_PASSWORD)
       }) {
         Text(text = "Play110")
       }
