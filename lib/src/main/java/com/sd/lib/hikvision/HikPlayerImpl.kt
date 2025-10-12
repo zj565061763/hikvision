@@ -11,11 +11,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
@@ -210,47 +212,41 @@ internal class HikPlayerImpl(
           ip = config.ip,
           username = config.username,
           password = config.password,
-        ).let { Result.success(it) }
+        ).let { userID ->
+          log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onSuccess isActive:$isActive|userID:$userID" }
+          Result.success(userID)
+        }
       }
     } catch (error: HikVisionException) {
-      // 重置，允许用相同的配置重试
+      log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onFailure isActive:$isActive|error:$error" }
       log { "reset InitConfig" }
+      // 重置，允许用相同的配置重试
       _initConfigFlow.value = null
       callback.onError(error)
       Result.failure(error)
     }.onSuccess { userID ->
-      log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onSuccess userID:$userID" }
-      launch { onInitConfigSuccess(config, userID) }
-    }.onFailure { error ->
-      log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onFailure error:$error" }
-      launch { onInitConfigFailure(config, error as HikVisionException) }
-    }
-  }
-
-  private fun onInitConfigSuccess(config: InitConfig, userID: Int) {
-    log { "onInitConfigSuccess ip:${config.ip}|streamType:${config.streamType}|userID:$userID" }
-    _playConfigFlow.update {
-      it.copy(
-        ip = config.ip,
-        userID = userID,
-        streamType = config.streamType,
-      )
-    }
-  }
-
-  private fun onInitConfigFailure(config: InitConfig, error: HikVisionException) {
-    log { "onInitConfigFailure ip:${config.ip}|streamType:${config.streamType}|error:$error" }
-    _playConfigFlow.update { it.copy(userID = null) }
-    when (error) {
-      is HikVisionExceptionLoginAccount -> {
-        // 用户名或者密码错误，不重试
+      ensureActive()
+      _playConfigFlow.update {
+        it.copy(
+          ip = config.ip,
+          userID = userID,
+          streamType = config.streamType,
+        )
       }
-      is HikVisionExceptionLoginLocked -> {
-        // 账号被锁定，不重试
-      }
-      else -> {
-        log { "startRetryJob submitInitConfig" }
-        _retryHandler.startRetryJob(error) { submitInitConfig(config) }
+    }.onFailure { e ->
+      ensureActive()
+      _playConfigFlow.update { it.copy(userID = null) }
+      when (val error = e as HikVisionException) {
+        is HikVisionExceptionLoginAccount -> {
+          // 用户名或者密码错误，不重试
+        }
+        is HikVisionExceptionLoginLocked -> {
+          // 账号被锁定，不重试
+        }
+        else -> {
+          log { "startRetryJob submitInitConfig" }
+          _retryHandler.startRetryJob(error) { submitInitConfig(config) }
+        }
       }
     }
   }
