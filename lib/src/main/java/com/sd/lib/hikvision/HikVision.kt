@@ -37,16 +37,17 @@ object HikVision {
       if (_hasInit) return true
       _log = log
       _hasInit = HCNetSDK.getInstance().NET_DVR_Init()
-      log { "init:$_hasInit" }
       return _hasInit.also { init ->
         if (init) {
           log {
             val version = HCNetSDK.getInstance().NET_DVR_GetSDKVersion()
             val buildVersion = HCNetSDK.getInstance().NET_DVR_GetSDKBuildVersion()
-            "version:$version|buildVersion:$buildVersion"
+            "init success version:$version|buildVersion:$buildVersion"
           }
           HCNetSDK.getInstance().NET_DVR_SetExceptionCallBack(_exceptionCallback)
-            .also { log { "NET_DVR_SetExceptionCallBack ret:$it" } }
+            .also { log { "SetExceptionCallBack ret:$it" } }
+        } else {
+          log { "init failed" }
         }
       }
     }
