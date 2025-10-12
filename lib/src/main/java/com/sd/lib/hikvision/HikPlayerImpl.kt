@@ -10,13 +10,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -31,7 +31,7 @@ internal class HikPlayerImpl(
   private var _initFlag = AtomicBoolean(false)
 
   /** 初始化配置 */
-  private val _initConfigChannel = Channel<InitConfig?>(Channel.CONFLATED)
+  private val _initConfigFlow = MutableSharedFlow<InitConfig?>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
   /** 播放配置 */
   private val _playConfigFlow = MutableStateFlow(PlayConfig())
 
@@ -97,7 +97,7 @@ internal class HikPlayerImpl(
 
       // 监听初始化配置
       _coroutineScope.launch {
-        _initConfigChannel.receiveAsFlow()
+        _initConfigFlow
           .filterNotNull()
           .collectLatest { handleInitConfig(it) }
       }
@@ -184,7 +184,7 @@ internal class HikPlayerImpl(
     log { "release" }
     HikVision.removeCallback(_hikVisionCallback)
     _coroutineScope.coroutineContext[Job]?.cancelChildren()
-    _initConfigChannel.trySend(null)
+    _initConfigFlow.tryEmit(null)
     _playConfigFlow.update { PlayConfig() }
     stopPlay()
     _initFlag.set(false)
@@ -194,7 +194,7 @@ internal class HikPlayerImpl(
   private fun submitInitConfig(config: InitConfig) {
     if (_initFlag.get()) {
       log { "submit InitConfig ip:${config.ip}|streamType:${config.streamType}" }
-      _initConfigChannel.trySend(config)
+      _initConfigFlow.tryEmit(config)
     }
   }
 
