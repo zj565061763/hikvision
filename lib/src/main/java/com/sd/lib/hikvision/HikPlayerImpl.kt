@@ -95,8 +95,13 @@ internal class HikPlayerImpl(
 
       // 监听初始化配置
       _coroutineScope.launch {
-        _initConfigFlow.filterNotNull()
-          .onEach { config -> log { "onEach InitConfig ip:${config.ip}|streamType:${config.streamType}" } }
+        _initConfigFlow.onEach { config ->
+          if (config != null) {
+            log { "onEach InitConfig ip:${config.ip}|streamType:${config.streamType}" }
+          } else {
+            log { "onEach InitConfig null" }
+          }
+        }.filterNotNull()
           .collectLatest { config ->
             try {
               handleInitConfig(config)
@@ -219,7 +224,6 @@ internal class HikPlayerImpl(
       }
     } catch (error: HikVisionException) {
       log { "handleInitConfig ip:${config.ip}|streamType:${config.streamType} onFailure isActive:$isActive|error:$error" }
-      log { "reset InitConfig" }
       // 重置，允许用相同的配置重试
       _initConfigFlow.value = null
       callback.onError(error)
