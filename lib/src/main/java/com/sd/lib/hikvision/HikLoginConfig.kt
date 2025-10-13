@@ -15,10 +15,10 @@ internal data class HikLoginConfig(
 }
 
 /**
- * rtsp://admin:admin@123456@192.168.100.110:554/Streaming/Channels/101
+ * rtsp://admin:pwd@123456@192.168.100.110:554/Streaming/Channels/101
  * ip:192.168.100.110
  * username:admin
- * password:admin@123456
+ * password:pwd@123456
  */
 private fun urlToLoginConfig(url: String?): HikLoginConfig? {
   if (url.isNullOrEmpty()) return null
