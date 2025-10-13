@@ -16,6 +16,9 @@ class HikExceptionLogin internal constructor(
   val code: Int,
 ) : HikException(message = "code($code)")
 
+/** 登录失败，非法参数 */
+class HikExceptionLoginParams internal constructor() : HikException()
+
 /** 登录失败，用户名或者密码错误 */
 class HikExceptionLoginAccount internal constructor(
   val code: Int,
