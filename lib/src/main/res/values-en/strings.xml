@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lib_hikvision_HikExceptionNotInit">Not initialized</string>
+    <string name="lib_hikvision_HikExceptionLogin">Login failed</string>
+    <string name="lib_hikvision_HikExceptionLoginParams">Illegal login parameters</string>
+    <string name="lib_hikvision_HikExceptionLoginAccount">The username or password is incorrect</string>
+    <string name="lib_hikvision_HikExceptionLoginLocked">The account has been locked</string>
+
+    <string name="lib_hikvision_PrefixOfPlayerException">Play Failed:</string>
+</resources>
