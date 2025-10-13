@@ -32,6 +32,7 @@ import com.sd.lib.hikvision.HikException
 import com.sd.lib.hikvision.HikExceptionLogin
 import com.sd.lib.hikvision.HikExceptionLoginAccount
 import com.sd.lib.hikvision.HikExceptionLoginLocked
+import com.sd.lib.hikvision.HikExceptionLoginParams
 import com.sd.lib.hikvision.HikExceptionNotInit
 import com.sd.lib.hikvision.HikExceptionPlayFailed
 import com.sd.lib.hikvision.HikPlayer
@@ -77,14 +78,16 @@ class SampleActivity : ComponentActivity() {
   private val _callback = object : HikPlayer.Callback() {
     override fun onError(e: HikException) {
       logMsg { "onError:$e" }
-      _tips = when (e) {
+      val desc = when (e) {
         is HikExceptionNotInit -> "未初始化"
         is HikExceptionLogin -> "登录失败(${e.code})"
-        is HikExceptionLoginAccount -> "登录失败，用户名或者密码错误(${e.code})"
-        is HikExceptionLoginLocked -> "登录失败，账号被锁定(${e.code})"
-        is HikExceptionPlayFailed -> "播放失败(${e.code})"
-        else -> "异常:$e"
+        is HikExceptionLoginParams -> "非法登录参数"
+        is HikExceptionLoginAccount -> "用户名或者密码错误(${e.code})"
+        is HikExceptionLoginLocked -> "账号被锁定(${e.code})"
+        is HikExceptionPlayFailed -> "(${e.code})"
+        else -> e.toString()
       }
+      _tips = "拉流失败:$desc"
     }
 
     override fun onStartPlay() {
