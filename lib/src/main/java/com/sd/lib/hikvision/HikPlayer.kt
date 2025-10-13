@@ -14,12 +14,13 @@ interface HikPlayer {
     username: String,
     /** 密码 */
     password: String,
-    /** 0-主码流；1-子码流 */
-    streamType: Int = 0,
   )
 
   /** 设置预览 */
   fun setSurface(surface: Surface?)
+
+  /** 设置流类型，0-主码流；1-子码流，默认0 */
+  fun setStreamType(type: Int)
 
   /** 开始播放 */
   fun startPlay()

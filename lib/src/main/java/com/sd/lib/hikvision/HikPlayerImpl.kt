@@ -51,7 +51,6 @@ internal class HikPlayerImpl(
     ip: String,
     username: String,
     password: String,
-    streamType: Int,
   ) {
     if (ip.isEmpty()) return
     if (username.isEmpty()) return
@@ -69,13 +68,16 @@ internal class HikPlayerImpl(
         ip = ip,
         username = username,
         password = password,
-        streamType = streamType,
       )
     )
   }
 
   override fun setSurface(surface: Surface?) {
     _playConfigFlow.update { it.copy(surface = surface) }
+  }
+
+  override fun setStreamType(type: Int) {
+    _playConfigFlow.update { it.copy(streamType = type) }
   }
 
   override fun startPlay() {
@@ -219,7 +221,7 @@ internal class HikPlayerImpl(
   /** 提交初始化配置 */
   private fun submitInitConfig(config: InitConfig) {
     if (_initFlag.get()) {
-      log { "submit InitConfig ip:${config.ip}|streamType:${config.streamType}" }
+      log { "submit InitConfig ip:${config.ip}" }
       _initConfigFlow.tryEmit(config)
     }
   }
@@ -227,7 +229,7 @@ internal class HikPlayerImpl(
   /** 处理初始化配置 */
   private suspend fun handleInitConfig(config: InitConfig) = coroutineScope {
     val count = _initConfigCount.incrementAndGet()
-    log { "handleInitConfig ($count) ... ip:${config.ip}|streamType:${config.streamType}" }
+    log { "handleInitConfig ($count) ... ip:${config.ip}" }
 
     _playConfig.ip?.also { playIP ->
       if (config.ip != playIP) {
@@ -243,23 +245,19 @@ internal class HikPlayerImpl(
           username = config.username,
           password = config.password,
         ).let { userID ->
-          log { "handleInitConfig ($count) onSuccess isActive:($isActive) ip:${config.ip}|streamType:${config.streamType}|userID:$userID" }
+          log { "handleInitConfig ($count) onSuccess isActive:($isActive) ip:${config.ip}|userID:$userID" }
           Result.success(userID)
         }
       }
     } catch (error: HikException) {
-      log { "handleInitConfig ($count) onFailure isActive:($isActive) ip:${config.ip}|streamType:${config.streamType}|error:$error" }
+      log { "handleInitConfig ($count) onFailure isActive:($isActive) ip:${config.ip}|error:$error" }
       callback.onError(error)
       Result.failure(error)
     }.also {
       ensureActive()
     }.onSuccess { userID ->
       _playConfigFlow.update {
-        it.copy(
-          ip = config.ip,
-          userID = userID,
-          streamType = config.streamType,
-        )
+        it.copy(ip = config.ip, userID = userID)
       }
     }.onFailure { e ->
       _playConfigFlow.update { it.copy(userID = null) }
@@ -283,7 +281,6 @@ internal class HikPlayerImpl(
     val ip: String,
     val username: String,
     val password: String,
-    val streamType: Int,
   )
 
   /** 播放配置 */
