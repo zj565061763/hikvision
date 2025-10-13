@@ -29,13 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.sd.demo.compose.hikvision.theme.AppTheme
 import com.sd.lib.hikvision.HikException
-import com.sd.lib.hikvision.HikExceptionLogin
-import com.sd.lib.hikvision.HikExceptionLoginAccount
-import com.sd.lib.hikvision.HikExceptionLoginLocked
-import com.sd.lib.hikvision.HikExceptionLoginParams
-import com.sd.lib.hikvision.HikExceptionNotInit
-import com.sd.lib.hikvision.HikExceptionPlayFailed
 import com.sd.lib.hikvision.HikPlayer
+import com.sd.lib.hikvision.descOfPlayer
 
 private const val DEFAULT_IP = "192.168.100.110"
 private const val DEFAULT_USERNAME = "admin110"
@@ -78,16 +73,7 @@ class SampleActivity : ComponentActivity() {
   private val _callback = object : HikPlayer.Callback() {
     override fun onError(e: HikException) {
       logMsg { "onError:$e" }
-      val desc = when (e) {
-        is HikExceptionNotInit -> "未初始化"
-        is HikExceptionLogin -> "登录失败(${e.code})"
-        is HikExceptionLoginParams -> "非法登录参数"
-        is HikExceptionLoginAccount -> "用户名或者密码错误(${e.code})"
-        is HikExceptionLoginLocked -> "账号被锁定(${e.code})"
-        is HikExceptionPlayFailed -> "(${e.code})"
-        else -> e.toString()
-      }
-      _tips = "拉流失败:$desc"
+      _tips = e.descOfPlayer(this@SampleActivity)
     }
 
     override fun onStartPlay() {

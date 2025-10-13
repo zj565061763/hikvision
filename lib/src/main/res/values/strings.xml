@@ -1,0 +1,9 @@
+<resources>
+    <string name="lib_hikvision_HikExceptionNotInit">未初始化</string>
+    <string name="lib_hikvision_HikExceptionLogin">登录失败</string>
+    <string name="lib_hikvision_HikExceptionLoginParams">非法登录参数</string>
+    <string name="lib_hikvision_HikExceptionLoginAccount">用户名或密码错误</string>
+    <string name="lib_hikvision_HikExceptionLoginLocked">账号被锁定</string>
+
+    <string name="lib_hikvision_PrefixOfPlayerException">播放失败:</string>
+</resources>
