@@ -234,7 +234,9 @@ internal class HikPlayerImpl(
     _playConfig.ip?.also { playIP ->
       if (config.ip != playIP) {
         log { "ip changed" }
-        _playConfigFlow.update { it.copy(ip = null, userID = null) }
+        _playConfigFlow.update {
+          it.copy(ip = null, userID = null)
+        }
       }
     }
 
@@ -260,7 +262,9 @@ internal class HikPlayerImpl(
         it.copy(ip = config.ip, userID = userID)
       }
     }.onFailure { e ->
-      _playConfigFlow.update { it.copy(userID = null) }
+      _playConfigFlow.update {
+        it.copy(ip = null, userID = null)
+      }
       when (val error = e as HikException) {
         is HikExceptionLoginAccount -> {
           // 用户名或者密码错误，不重试
