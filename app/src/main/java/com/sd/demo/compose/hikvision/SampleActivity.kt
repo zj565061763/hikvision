@@ -46,6 +46,9 @@ class SampleActivity : ComponentActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    // 0-主码流；1-子码流，默认0
+    _player.setStreamType(1)
+    // 初始化
     _player.init(ip = DEFAULT_IP, username = DEFAULT_USERNAME, password = DEFAULT_PASSWORD)
     setContent {
       AppTheme {
