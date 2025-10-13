@@ -195,7 +195,7 @@ internal class HikPlayerImpl(
 
     if (playHandle >= 0) {
       // 播放成功
-      log { "startPlayInternal success userID:$userID|streamType:${config.streamType}" }
+      log { "startPlayInternal success userID:$userID|streamType:${config.streamType}|playHandle:$playHandle" }
       callback.onStartPlay()
     } else {
       // 播放失败
