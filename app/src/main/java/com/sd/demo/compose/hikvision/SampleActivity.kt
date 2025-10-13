@@ -38,7 +38,8 @@ import com.sd.lib.hikvision.HikPlayer
 
 private const val DEFAULT_IP = "192.168.100.110"
 private const val DEFAULT_USERNAME = "admin110"
-private const val DEFAULT_PASSWORD = "admin110"
+private const val DEFAULT_PASSWORD = "pwd@123456"
+private const val DEFAULT_URL = "rtsp://${DEFAULT_USERNAME}:${DEFAULT_PASSWORD}@${DEFAULT_IP}:554/Streaming/Channels/101"
 
 class SampleActivity : ComponentActivity() {
   private val _player by lazy { HikPlayer.create(_callback) }
@@ -140,9 +141,9 @@ private fun Content(
         .navigationBarsPadding()
     ) {
       Button(onClick = {
-        player.init(ip = DEFAULT_IP, username = DEFAULT_USERNAME, password = DEFAULT_PASSWORD)
+        player.initWithUrl(DEFAULT_URL)
       }) {
-        Text(text = "110")
+        Text(text = "default")
       }
       Spacer(Modifier.width(16.dp))
       Button(onClick = {
