@@ -35,6 +35,7 @@ internal class HikPlayerImpl(
   private val _initConfigFlow = MutableSharedFlow<InitConfig?>(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
   /** 播放配置 */
   private val _playConfigFlow = MutableStateFlow(PlayConfig())
+  private val _playConfig get() = _playConfigFlow.value
 
   /** 是否需要播放 */
   @Volatile
@@ -80,7 +81,7 @@ internal class HikPlayerImpl(
   override fun startPlay() {
     log { "startPlay" }
     _requirePlay = true
-    startPlayInternal(_playConfigFlow.value)
+    startPlayInternal(_playConfig)
   }
 
   override fun stopPlay() {
@@ -127,8 +128,7 @@ internal class HikPlayerImpl(
       // 监听SDK事件
       _coroutineScope.launch {
         HikVision.sdkEventFlow.collect { event ->
-          val config = _playConfigFlow.value
-          if (config.userID == event.userID) {
+          if (_playConfig.userID == event.userID) {
             when (event.type) {
               HCNetSDK.EXCEPTION_RECONNECT -> callback.onReconnect()
               HCNetSDK.PREVIEW_RECONNECTSUCCESS -> callback.onReconnectSuccess()
@@ -228,6 +228,14 @@ internal class HikPlayerImpl(
   private suspend fun handleInitConfig(config: InitConfig) = coroutineScope {
     val count = _initConfigCount.incrementAndGet()
     log { "handleInitConfig ($count) ... ip:${config.ip}|streamType:${config.streamType}" }
+
+    _playConfig.ip?.also { playIP ->
+      if (config.ip != playIP) {
+        log { "ip changed" }
+        _playConfigFlow.update { it.copy(ip = null, userID = null) }
+      }
+    }
+
     try {
       withContext(Dispatchers.IO) {
         HikVision.login(
