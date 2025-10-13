@@ -6,6 +6,17 @@ import android.view.Surface
 import java.lang.ref.WeakReference
 
 interface HikPlayer {
+  /**
+   * 解析[url]获取ip,username,password并调用[init]初始化，
+   * 如果[url]解析失败，会回调[Callback.onError]异常[HikExceptionLoginParams]
+   *
+   * 例如：rtsp://admin:pwd@123456@192.168.100.110:554/Streaming/Channels/101
+   * - ip:192.168.100.110
+   * - username:admin
+   * - password:pwd@123456
+   */
+  fun initWithUrl(url: String?)
+
   /** 初始化 */
   fun init(
     /** IP */
@@ -15,15 +26,6 @@ interface HikPlayer {
     /** 密码 */
     password: String,
   )
-
-  /**
-   * 用[url]初始化，[url]必须是合法的协议，包括ip,username,password，
-   * 例如：rtsp://admin:pwd@123456@192.168.100.110:554/Streaming/Channels/101
-   * ip:192.168.100.110
-   * username:admin
-   * password:pwd@123456
-   */
-  fun initWithUrl(url: String?)
 
   /** 设置预览 */
   fun setSurface(surface: Surface?)
