@@ -63,9 +63,13 @@ internal class HikPlayerImpl(
     username: String,
     password: String,
   ) {
-    if (ip.isEmpty()) return
-    if (username.isEmpty()) return
-    if (password.isEmpty()) return
+    if (ip.isEmpty()
+      || username.isEmpty()
+      || password.isEmpty()
+    ) {
+      callback.onError(HikExceptionLoginParams())
+      return
+    }
 
     // 初始化播放器
     initPlayer()
