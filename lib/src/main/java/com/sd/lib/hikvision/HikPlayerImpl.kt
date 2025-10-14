@@ -59,14 +59,15 @@ internal class HikPlayerImpl(
   }
 
   override fun init(
-    ip: String,
-    username: String,
-    password: String,
+    ip: String?,
+    username: String?,
+    password: String?,
   ) {
-    if (ip.isEmpty()
-      || username.isEmpty()
-      || password.isEmpty()
+    if (ip.isNullOrEmpty()
+      || username.isNullOrEmpty()
+      || password.isNullOrEmpty()
     ) {
+      log { "init failed (ip|username|password) isNullOrEmpty" }
       callback.onError(HikExceptionLoginParams())
       return
     }

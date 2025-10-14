@@ -20,11 +20,11 @@ interface HikPlayer {
   /** 初始化 */
   fun init(
     /** IP */
-    ip: String,
+    ip: String?,
     /** 用户名 */
-    username: String,
+    username: String?,
     /** 密码 */
-    password: String,
+    password: String?,
   )
 
   /** 设置预览 */
