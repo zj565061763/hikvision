@@ -9,6 +9,7 @@ internal data class HikLoginConfig(
 ) {
   companion object {
     fun parseUrl(url: String): HikLoginConfig? {
+      require(url.isNotEmpty())
       return runCatching { urlToLoginConfig(url) }.getOrNull()
     }
   }
