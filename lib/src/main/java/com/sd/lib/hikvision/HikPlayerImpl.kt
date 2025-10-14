@@ -88,10 +88,12 @@ internal class HikPlayerImpl(
   }
 
   override fun setSurface(surface: Surface?) {
+    if (_playConfig.surface != surface) log { "setSurface:$surface" }
     _playConfigFlow.update { it.copy(surface = surface) }
   }
 
   override fun setStreamType(type: Int) {
+    if (_playConfig.streamType != type) log { "setStreamType:$type" }
     _playConfigFlow.update { it.copy(streamType = type) }
   }
 
