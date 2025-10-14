@@ -8,7 +8,7 @@ internal data class HikLoginConfig(
   val password: String,
 ) {
   companion object {
-    fun parseUrl(url: String?): HikLoginConfig? {
+    fun parseUrl(url: String): HikLoginConfig? {
       return runCatching { urlToLoginConfig(url) }.getOrNull()
     }
   }
@@ -20,9 +20,7 @@ internal data class HikLoginConfig(
  * username:admin
  * password:pwd@123456
  */
-private fun urlToLoginConfig(url: String?): HikLoginConfig? {
-  if (url.isNullOrEmpty()) return null
-
+private fun urlToLoginConfig(url: String): HikLoginConfig? {
   // 去掉协议前缀
   val withoutScheme = url.substringAfter(delimiter = "://", missingDelimiterValue = "")
   if (withoutScheme.isEmpty()) return null

@@ -48,11 +48,19 @@ internal class HikPlayerImpl(
   private val _initConfigCount = AtomicLong()
 
   override fun initWithUrl(url: String?) {
-    val loginConfig = HikLoginConfig.parseUrl(url)
-    if (loginConfig == null) {
+    if (url.isNullOrEmpty()) {
+      log { "initWithUrl failed url isNullOrEmpty" }
       callback.onError(HikExceptionLoginParams())
       return
     }
+
+    val loginConfig = HikLoginConfig.parseUrl(url)
+    if (loginConfig == null) {
+      log { "initWithUrl failed illegal url" }
+      callback.onError(HikExceptionLoginParams())
+      return
+    }
+
     with(loginConfig) {
       init(ip = ip, username = username, password = password)
     }
