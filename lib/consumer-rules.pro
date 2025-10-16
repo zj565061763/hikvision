@@ -1,4 +1,5 @@
--keep class com.hikvision.netsdk.** { *; }
+-keep class com.hikvision.** { *; }
+-keep class org.MediaPlayer.PlayM4.** { *; }
 -keep class com.sd.lib.hikvision.HikException
 -keep class * extends com.sd.lib.hikvision.HikException
 -keep class * extends com.sd.lib.hikvision.HikPlayer
