@@ -2,15 +2,15 @@ package com.sd.lib.hikvision
 
 import java.net.URLDecoder
 
-internal data class HikLoginConfig(
+internal data class HikLoginParams(
   val ip: String,
   val username: String,
   val password: String,
 ) {
   companion object {
-    fun parseUrl(url: String): HikLoginConfig? {
+    fun parseUrl(url: String): HikLoginParams? {
       require(url.isNotEmpty())
-      return runCatching { urlToLoginConfig(url) }.getOrNull()
+      return runCatching { urlToLoginParams(url) }.getOrNull()
     }
   }
 }
@@ -21,7 +21,7 @@ internal data class HikLoginConfig(
  * username:admin
  * password:pwd@123456
  */
-private fun urlToLoginConfig(url: String): HikLoginConfig? {
+private fun urlToLoginParams(url: String): HikLoginParams? {
   // 去掉协议前缀
   val withoutScheme = url.substringAfter(delimiter = "://", missingDelimiterValue = "")
   if (withoutScheme.isEmpty()) return null
@@ -56,7 +56,7 @@ private fun urlToLoginConfig(url: String): HikLoginConfig? {
   val safeUsername = URLDecoder.decode(username, "UTF-8")
   val safePassword = URLDecoder.decode(password, "UTF-8")
 
-  return HikLoginConfig(
+  return HikLoginParams(
     ip = ip,
     username = safeUsername,
     password = safePassword,

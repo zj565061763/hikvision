@@ -54,14 +54,14 @@ internal class HikPlayerImpl(
       return
     }
 
-    val loginConfig = HikLoginConfig.parseUrl(url)
-    if (loginConfig == null) {
+    val loginParams = HikLoginParams.parseUrl(url)
+    if (loginParams == null) {
       log { "initWithUrl failed illegal url" }
       callback.onError(HikExceptionLoginParams())
       return
     }
 
-    with(loginConfig) {
+    with(loginParams) {
       init(ip = ip, username = username, password = password)
     }
   }
