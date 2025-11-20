@@ -66,11 +66,7 @@ internal class HikPlayerImpl(
     }
   }
 
-  override fun init(
-    ip: String?,
-    username: String?,
-    password: String?,
-  ) {
+  override fun init(ip: String?, username: String?, password: String?) {
     if (ip.isNullOrEmpty()
       || username.isNullOrEmpty()
       || password.isNullOrEmpty()
