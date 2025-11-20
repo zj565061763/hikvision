@@ -81,6 +81,7 @@ object HikVision {
     // 检查登录信息是否已存在
     _loginInfo[ip]?.also { info ->
       if (info.config == config) {
+        log { "login success with cache ip:$ip|userID:${info.userID}" }
         return info.userID
       } else {
         logout(ip)
