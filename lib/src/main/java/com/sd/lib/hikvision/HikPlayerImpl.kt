@@ -12,16 +12,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -122,9 +120,9 @@ internal class HikPlayerImpl(
 
       // 监听初始化配置
       _coroutineScope.launch {
-        _initConfigFlow
-          .filterNotNull()
-          .collectLatest { handleInitConfig(it) }
+        _initConfigFlow.filterNotNull().collectLatest {
+          handleInitConfig(it)
+        }
       }
 
       // 监听播放配置
@@ -249,7 +247,7 @@ internal class HikPlayerImpl(
   }
 
   /** 处理初始化配置 */
-  private suspend fun handleInitConfig(config: InitConfig) = coroutineScope {
+  private suspend fun handleInitConfig(config: InitConfig) {
     val count = _initConfigCount.incrementAndGet()
     log { "handleInitConfig ($count) ... ip:${config.ip}" }
 
@@ -269,16 +267,17 @@ internal class HikPlayerImpl(
           username = config.username,
           password = config.password,
         ).let { userID ->
-          log { "handleInitConfig ($count) onSuccess isActive:($isActive) ip:${config.ip}|userID:$userID" }
+          log { "handleInitConfig ($count) onSuccess ip:${config.ip}|userID:$userID" }
           Result.success(userID)
         }
       }
     } catch (error: HikException) {
-      log { "handleInitConfig ($count) onFailure isActive:($isActive) ip:${config.ip}|error:$error" }
+      log { "handleInitConfig ($count) onFailure ip:${config.ip}|error:$error" }
       callback.onError(error)
       Result.failure(error)
     }.also {
-      ensureActive()
+      yield()
+      log { "handleInitConfig ($count) yield" }
     }.onSuccess { userID ->
       _playConfigFlow.update {
         it.copy(ip = config.ip, userID = userID)
