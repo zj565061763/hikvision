@@ -313,8 +313,8 @@ internal class HikPlayerImpl(
   private data class PlayConfig(
     val ip: String? = null,
     val userID: Int? = null,
-    val streamType: Int = 0,
     val surface: Surface? = null,
+    val streamType: Int = 0,
   )
 
   init {
