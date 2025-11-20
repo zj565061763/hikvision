@@ -31,13 +31,13 @@ private fun urlToLoginParams(url: String): HikLoginParams? {
   if (indexOfLastAt < 0) return null
 
   // username:password（password 可能含 ':', '@' 等）
-  val credPart = withoutScheme.substring(0, indexOfLastAt)
+  val credPart = withoutScheme.take(indexOfLastAt)
 
   // username 与 password：按第一个 ':' 分割（username 不应包含 ':'）
   val indexOfColonForCred = credPart.indexOf(':')
   if (indexOfColonForCred < 0) return null
 
-  val username = credPart.substring(0, indexOfColonForCred)
+  val username = credPart.take(indexOfColonForCred)
   if (username.isEmpty()) return null
 
   val password = credPart.substring(indexOfColonForCred + 1)
